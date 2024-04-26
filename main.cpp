@@ -2,6 +2,7 @@
 #include <vector>
 
 static const int REGISTER_COUNT = 32;
+static const int MEMORY_SIZE = 16;
 
 class CPU;
 
@@ -16,6 +17,7 @@ public:
     int32_t ip;
     std::vector<Instruction *> *program;
     std::vector<int> *registers;
+    std::vector<int> *memory;
 
     CPU() {
         ip = 0;
@@ -23,6 +25,17 @@ public:
         registers = new std::vector<int>();
         for (int k = 0; k < REGISTER_COUNT; k++) {
             registers->push_back(0);
+        }
+        memory = new std::vector<int>();
+        for (int k = 0; k < MEMORY_SIZE; k++) {
+            memory->push_back(0);
+        }
+    }
+
+    void print_memory(){
+        printf("------------------Memory----------------\n");
+        for(int k=0;k<memory->size();k++){
+            printf("%04d %04d\n",k, memory->at(k));
         }
     }
 
@@ -43,10 +56,10 @@ public:
 
     int src_1, src_2, dst;
 
-public:
+    Add(int src_1, int src_2, int dst) : src_1(src_1), src_2(src_2), dst(dst) {
+    }
 
     void execute(CPU *cpu) override {
-        printf("add\n");
         int a = cpu->registers->at(src_1);
         int b = cpu->registers->at(src_2);
         cpu->registers->at(dst) = a + b;
@@ -54,16 +67,66 @@ public:
     }
 };
 
+class Load : public Instruction {
+
+public:
+
+    int src, dst;
+
+    Load(int src, int dst) : src(src), dst(dst) {
+    }
+
+    void execute(CPU *cpu) override {
+        cpu->registers->at(dst) = cpu->memory->at(src);
+        cpu->ip++;
+    }
+};
+
+
+class Inc: public Instruction {
+public:
+
+    int src, dst;
+
+    Inc(int src) : src(src) {
+    }
+
+    void execute(CPU *cpu) override {
+        int v = cpu->registers->at(src);
+        cpu->registers->at(src)=v+1;
+        cpu->ip++;
+    }
+};
+
+class Store : public Instruction {
+
+public:
+
+    int src, dst;
+
+    Store(int src, int dst) : src(src), dst(dst) {
+    }
+
+    void execute(CPU *cpu) override {
+        cpu->memory->at(src) = cpu->registers->at(dst);
+        cpu->ip++;
+    }
+};
+
 class Halt : public Instruction {
     void execute(CPU *cpu) override {
         cpu->ip = -1;
-        printf("halt");
+        printf("halt\n");
     }
 };
 
 class Print : public Instruction {
 public:
     int src;
+
+    Print(int src) : src(src) {
+
+    }
 
     void execute(CPU *cpu) override {
         int a = cpu->registers->at(src);
@@ -75,23 +138,25 @@ public:
 
 int main() {
     CPU *cpu = new CPU();
-    Add *add = new Add();
-    add->src_1 = 0;
-    add->src_2 = 1;
-    add->dst = 2;
-    cpu->program->push_back(add);
+    cpu->memory->at(0) = 5;
+    cpu->memory->at(1) = 10;
+    cpu->memory->at(2) = 20;
 
-    Print *print = new Print();
-    print->src = 2;
+    cpu->program->push_back(new Load(0,0));
+    cpu->program->push_back(new Inc(0));
+    cpu->program->push_back(new Load(1,1));
+    cpu->program->push_back(new Load(2,2));
 
-    cpu->program->push_back(print);
+    cpu->program->push_back(new Add(0, 1, 3));
+    cpu->program->push_back(new Add(2, 3, 4));
+
+    cpu->program->push_back(new Store(4,1));
     cpu->program->push_back(new Halt());
-
-    cpu->registers->at(0)=5;
-    cpu->registers->at(1)=10;
 
     while (!cpu->has_halted()) {
         cpu->tick();
     }
+
+    cpu->print_memory();
     return 0;
 }

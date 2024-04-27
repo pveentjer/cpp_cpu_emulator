@@ -13,6 +13,7 @@ static const int OPCODE_HALT = 6;
 static const int OPCODE_CMP = 7;
 static const int OPCODE_JNZ = 8;
 static const int OPCODE_DEC = 9;
+static const int OPCODE_SUB = 10;
 
 struct Instruction {
     int opcode;
@@ -20,6 +21,9 @@ struct Instruction {
         struct {
             int src1, src2, dst;
         } add;
+        struct {
+            int src1, src2, dst;
+        } sub;
         struct {
             int src, dst;
         } ldr;
@@ -83,7 +87,13 @@ public:
                 ip++;
                 break;
             }
-            case OPCODE_CMP: {
+            case OPCODE_SUB: {
+                int a = registers->at(instr->code.sub.src1);
+                int b = registers->at(instr->code.sub.src2);
+                registers->at(instr->code.sub.dst) = a + b;
+                ip++;
+                break;
+            }case OPCODE_CMP: {
                 int a = registers->at(instr->code.add.src1);
                 int b = registers->at(instr->code.add.src2);
                 registers->at(instr->code.add.dst) = a == b;

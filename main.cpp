@@ -6,10 +6,13 @@ static const int MEMORY_SIZE = 16;
 
 static const int OPCODE_ADD = 1;
 static const int OPCODE_INC = 2;
-static const int OPCODE_LOAD = 3;
-static const int OPCODE_STORE = 4;
+static const int OPCODE_LDR = 3;
+static const int OPCODE_STR = 4;
 static const int OPCODE_PRINT = 5;
 static const int OPCODE_HALT = 6;
+static const int OPCODE_CMP = 7;
+static const int OPCODE_JNZ = 8;
+static const int OPCODE_DEC = 9;
 
 struct Instruction {
     int opcode;
@@ -19,10 +22,10 @@ struct Instruction {
         } add;
         struct {
             int src, dst;
-        } load;
+        } ldr;
         struct {
             int src, dst;
-        } store;
+        } str;
         struct {
             int src;
         } print;
@@ -30,7 +33,16 @@ struct Instruction {
             int src;
         } inc;
         struct {
+            int src;
+        } dec;
+        struct {
         } halt;
+        struct {
+            int sr1, src2, dst;
+        } cmp;
+        struct {
+            int src, target;
+        } jnz;
     } code;
 };
 
@@ -71,26 +83,46 @@ public:
                 ip++;
                 break;
             }
+            case OPCODE_CMP: {
+                int a = registers->at(instr->code.add.src1);
+                int b = registers->at(instr->code.add.src2);
+                registers->at(instr->code.add.dst) = a == b;
+                ip++;
+                break;
+            }
             case OPCODE_INC: {
-                int v = registers->at(instr->code.inc.src);
-                registers->at(instr->code.inc.src) = v + 1;
+                registers->at(instr->code.inc.src)++;
                 ip++;
                 break;
             }
-            case OPCODE_LOAD: {
-                registers->at(instr->code.load.dst) = memory->at(instr->code.load.src);
+            case OPCODE_DEC: {
+                registers->at(instr->code.dec.src)--;
                 ip++;
                 break;
             }
-            case OPCODE_STORE: {
-                memory->at(instr->code.store.dst) = registers->at(instr->code.store.src);
+            case OPCODE_LDR: {
+                registers->at(instr->code.ldr.dst) = memory->at(instr->code.ldr.src);
+                ip++;
+                break;
+            }
+            case OPCODE_STR: {
+                memory->at(instr->code.str.dst) = registers->at(instr->code.str.src);
                 ip++;
                 break;
             }
             case OPCODE_PRINT: {
                 int a = registers->at(instr->code.print.src);
-                printf("print %d\n", a);
+                printf("%d\n", a);
                 ip++;
+                break;
+            }
+            case OPCODE_JNZ: {
+                int a = registers->at(instr->code.jnz.src);
+                if (a != 0) {
+                    ip = instr->code.jnz.target;
+                } else {
+                    ip++;
+                }
                 break;
             }
             case OPCODE_HALT: {
@@ -107,7 +139,7 @@ public:
     }
 
     void tick() {
-        printf("tick %d\n", ip);
+//printf("tick %d\n", ip);
         Instruction *instr = &program->at(ip);
         execute(instr);
     }
@@ -119,17 +151,22 @@ int main() {
     cpu->memory->at(1) = 10;
     cpu->memory->at(2) = 20;
     cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_LOAD;
-    cpu->program->back().code.load.src = 0;
-    cpu->program->back().code.load.dst = 0;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_INC;
-    cpu->program->back().code.inc.src = 0;
+    cpu->program->back().opcode = OPCODE_LDR;
+    cpu->program->back().code.ldr.src = 0;
+    cpu->program->back().code.ldr.dst = 0;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_PRINT;
     cpu->program->back().code.print.src = 0;
+
+    cpu->program->push_back(Instruction());
+    cpu->program->back().opcode = OPCODE_DEC;
+    cpu->program->back().code.dec.src = 0;
+
+    cpu->program->push_back(Instruction());
+    cpu->program->back().opcode = OPCODE_JNZ;
+    cpu->program->back().code.jnz.src = 0;
+    cpu->program->back().code.jnz.target = 1;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_HALT;

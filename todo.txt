@@ -1,0 +1,13 @@
+TODO
+
+- stlf: currently a load will miss the store in the store buffer
+
+- pipelining
+
+- super scalar
+
+- out of order execution
+
+DONE
+
+- store buffer

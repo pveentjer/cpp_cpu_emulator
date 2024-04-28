@@ -1,5 +1,7 @@
 TODO
 
+- program loader: should use R prefix for instructions
+
 - pass program to load from the command line
 
 - program loader: should support comments
@@ -21,6 +23,8 @@ TODO
 - out of order execution
 
 DONE
+
+- instruction print should add R prefix for registers.
 
 - program loader. Current way to load a program is a pain
 

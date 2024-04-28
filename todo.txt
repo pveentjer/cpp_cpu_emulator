@@ -1,6 +1,6 @@
 TODO
 
-- stlf: currently a load will miss the store in the store buffer
+- program loader. Current way to load a program is a pain
 
 - pipelining
 
@@ -11,3 +11,5 @@ TODO
 DONE
 
 - store buffer
+
+- stlf: currently a load will miss the store in the store buffer

@@ -8,20 +8,26 @@ static const int MEMORY_SIZE = 16;
 static const int STORE_BUFFER_CAPACITY = 4;
 static const int CPU_FREQUENCY_HZ = 1;
 
+// adds 2 registers and writes the result in another
 static const int OPCODE_ADD = 1;
-static const int OPCODE_INC = 2;
-static const int OPCODE_LOAD = 3;
-static const int OPCODE_STORE = 4;
+// subtracts the second register from the first and writes the result in another
+static const int OPCODE_SUB = 2;
+// increments the value in a register
+static const int OPCODE_INC = 3;
+// decrements the value in a register
+static const int OPCODE_DEC = 4;
+
+static const int OPCODE_AND = 5;
+static const int OPCODE_OR = 6;
+static const int OPCODE_NOT = 7;
+
+static const int OPCODE_LOAD = 8;
+static const int OPCODE_STORE = 9;
 // prints a value from a register
-static const int OPCODE_PRINTR = 5;
-static const int OPCODE_HALT = 6;
-static const int OPCODE_CMP = 7;
-static const int OPCODE_JNZ = 8;
-static const int OPCODE_DEC = 9;
-static const int OPCODE_SUB = 10;
-static const int OPCODE_AND = 11;
-static const int OPCODE_OR = 12;
-static const int OPCODE_NOT = 13;
+static const int OPCODE_PRINTR = 10;
+static const int OPCODE_HALT = 11;
+static const int OPCODE_CMP = 12;
+static const int OPCODE_JNZ = 13;
 // copy between registers
 static const int OPCODE_MOV = 14;
 
@@ -227,7 +233,7 @@ public:
             }
             case OPCODE_STORE:
             {
-                sb_add(registers->at(instr->code.STORE.r_src), instr->code.STORE.m_addr);
+                sb_write(instr->code.STORE.m_addr, registers->at(instr->code.STORE.r_src));
                 ip++;
                 break;
             }
@@ -387,7 +393,7 @@ public:
         return std::nullopt;
     }
 
-    void sb_add(int value, int addr)
+    void sb_write(int addr, int value)
     {
         StoreBufferEntry &entry = sb.entries[sb.tail % STORE_BUFFER_CAPACITY];
         entry.value = value;
@@ -399,8 +405,8 @@ public:
     {
         if (sb.head != sb.tail)
         {
-            StoreBufferEntry *entry = &sb.entries[sb.head % STORE_BUFFER_CAPACITY];
-            memory->at(entry->addr) = entry->value;
+            StoreBufferEntry &entry = sb.entries[sb.head % STORE_BUFFER_CAPACITY];
+            memory->at(entry.addr) = entry.value;
             sb.head++;
         }
     }

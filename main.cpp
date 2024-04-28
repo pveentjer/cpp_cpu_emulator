@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <optional>
 
 static const int REGISTER_COUNT = 32;
 static const int MEMORY_SIZE = 16;
@@ -11,7 +12,8 @@ static const int OPCODE_ADD = 1;
 static const int OPCODE_INC = 2;
 static const int OPCODE_LOAD = 3;
 static const int OPCODE_STORE = 4;
-static const int OPCODE_PRINT_REG = 5;
+// prints a value from a register
+static const int OPCODE_PRINTR = 5;
 static const int OPCODE_HALT = 6;
 static const int OPCODE_CMP = 7;
 static const int OPCODE_JNZ = 8;
@@ -26,62 +28,65 @@ static const int OPCODE_MOV = 14;
 struct Instruction
 {
     int opcode;
+    // r_ prefix means it is a register
+    // m_prefix means it is from memory
+    // p_prefix means it is an address in the program
     union
     {
         struct
         {
-            int src1, src2, dst;
+            uint32_t r_src1, r_src2, r_dst;
         } ADD;
         struct
         {
-            int src1, src2, dst;
+            uint32_t  r_src1, r_src2, r_dst;
         } SUB;
         struct
         {
-            int src1, src2, dst;
+            uint32_t  r_src1, r_src2, r_dst;
         } AND;
         struct
         {
-            int src1, src2, dst;
+            uint32_t  r_src1, r_src2, r_dst;
         } OR;
         struct
         {
-            int src, dst;
+            uint32_t  r_src, r_dst;
         } NOT;
         struct
         {
-            int src, dst;
+            uint32_t  m_src, r_dst;
         } LOAD;
         struct
         {
-            int src, dst;
+            uint32_t  r_src, m_addr;
         } STORE;
         struct
         {
-            int src, dst;
+            uint32_t  r_src, r_dst;
         } MOV;
         struct
         {
-            int src;
-        } PRINT_REG;
+            uint32_t  r_src;
+        } PRINTR;
         struct
         {
-            int src;
+            uint32_t  r_src;
         } INC;
         struct
         {
-            int src;
+            uint32_t  r_src;
         } DEC;
         struct
         {
         } HALT;
         struct
         {
-            int src1, src2, dst;
+            uint32_t  r_src1, r_src2, r_dst;
         } CMP;
         struct
         {
-            int src, target;
+            uint32_t  r_src, p_target;
         } JNZ;
     } code;
 };
@@ -108,7 +113,7 @@ public:
     std::vector<int> *registers;
     std::vector<int> *memory;
     StoreBuffer sb;
-    bool printInstructions;
+    bool trace;
 
     CPU()
     {
@@ -126,7 +131,7 @@ public:
         }
         sb.head = 0;
         sb.tail = 0;
-        printInstructions = true;
+        trace = false;
     }
 
     void print_memory()
@@ -144,94 +149,101 @@ public:
         {
             case OPCODE_ADD:
             {
-                int a = registers->at(instr->code.ADD.src1);
-                int b = registers->at(instr->code.ADD.src2);
-                registers->at(instr->code.ADD.dst) = a + b;
+                int  v1 = registers->at(instr->code.ADD.r_src1);
+                int  v2 = registers->at(instr->code.ADD.r_src2);
+                registers->at(instr->code.ADD.r_dst) = v1 + v2;
                 ip++;
                 break;
             }
             case OPCODE_SUB:
             {
-                int a = registers->at(instr->code.SUB.src1);
-                int b = registers->at(instr->code.SUB.src2);
-                registers->at(instr->code.SUB.dst) = a + b;
+                int v1 = registers->at(instr->code.SUB.r_src1);
+                int v2 = registers->at(instr->code.SUB.r_src2);
+                registers->at(instr->code.SUB.r_dst) = v1 + v2;
                 ip++;
                 break;
             }
             case OPCODE_AND:
             {
-                int a = registers->at(instr->code.AND.src1);
-                int b = registers->at(instr->code.AND.src2);
-                registers->at(instr->code.AND.dst) = a && b;
+                int v1 = registers->at(instr->code.AND.r_src1);
+                int v2 = registers->at(instr->code.AND.r_src2);
+                registers->at(instr->code.AND.r_dst) = v1 && v2;
                 ip++;
                 break;
             }
             case OPCODE_OR:
             {
-                int a = registers->at(instr->code.OR.src1);
-                int b = registers->at(instr->code.OR.src2);
-                registers->at(instr->code.OR.dst) = a || b;
+                int v1 = registers->at(instr->code.OR.r_src1);
+                int v2 = registers->at(instr->code.OR.r_src2);
+                registers->at(instr->code.OR.r_dst) = v1 || v2;
                 ip++;
                 break;
             }
             case OPCODE_NOT:
             {
-                int a = registers->at(instr->code.NOT.src);
-                registers->at(instr->code.OR.dst) = !a;
+                int v1 = registers->at(instr->code.NOT.r_src);
+                registers->at(instr->code.OR.r_dst) = !v1;
                 ip++;
                 break;
             }
             case OPCODE_CMP:
             {
-                int a = registers->at(instr->code.CMP.src1);
-                int b = registers->at(instr->code.CMP.src2);
-                registers->at(instr->code.CMP.dst) = a == b;
+                int v1 = registers->at(instr->code.CMP.r_src1);
+                int v2 = registers->at(instr->code.CMP.r_src2);
+                registers->at(instr->code.CMP.r_dst) = v1 == v2;
                 ip++;
                 break;
             }
             case OPCODE_INC:
             {
-                registers->at(instr->code.INC.src)++;
+                registers->at(instr->code.INC.r_src)++;
                 ip++;
                 break;
             }
             case OPCODE_DEC:
             {
-                registers->at(instr->code.DEC.src)--;
+                registers->at(instr->code.DEC.r_src)--;
                 ip++;
                 break;
             }
             case OPCODE_MOV:
             {
-                registers->at(instr->code.MOV.dst) = registers->at(instr->code.MOV.src);
+                registers->at(instr->code.MOV.r_dst) = registers->at(instr->code.MOV.r_src);
                 ip++;
                 break;
             }
             case OPCODE_LOAD:
             {
-                registers->at(instr->code.LOAD.dst) = memory->at(instr->code.LOAD.src);
+                // a primitive version of store to load forwarding. Because of the store buffer
+                // we first need to look there before returning the value otherwise the CPU would
+                // not be able to see some of its own writes and become incoherent.
+
+                int value = sb_lookup(instr->code.LOAD.m_src)
+                        .value_or(memory->at(instr->code.LOAD.m_src));
+
+                registers->at(instr->code.LOAD.r_dst) = value;
                 ip++;
                 break;
             }
             case OPCODE_STORE:
             {
-                sb_add(registers->at(instr->code.STORE.src), instr->code.STORE.dst);
+                sb_add(registers->at(instr->code.STORE.r_src), instr->code.STORE.m_addr);
                 ip++;
                 break;
             }
-            case OPCODE_PRINT_REG:
+            case OPCODE_PRINTR:
             {
-                int a = registers->at(instr->code.PRINT_REG.src);
-                printf("R%d=%d\n", instr->code.PRINT_REG.src, a);
+                int v1 = registers->at(instr->code.PRINTR.r_src);
+                printf("R%d=%d\n", instr->code.PRINTR.r_src, v1);
                 ip++;
                 break;
             }
             case OPCODE_JNZ:
             {
-                int a = registers->at(instr->code.JNZ.src);
-                if (a != 0)
+                int v1 = registers->at(instr->code.JNZ.r_src);
+                if (v1 != 0)
                 {
-                    ip = instr->code.JNZ.target;
+                    ip = instr->code.JNZ.p_target;
                 }
                 else
                 {
@@ -245,77 +257,77 @@ public:
                 break;
             }
             default:
-                throw std::runtime_error("Unrecognized opcode=%d");
+                throw std::runtime_error("Unrecognized opcode");
         }
     }
 
-    void print(Instruction *instr)
+    static void print(Instruction *instr)
     {
         switch (instr->opcode)
         {
             case OPCODE_ADD:
             {
-                printf("ADD %d %d %d\n", instr->code.SUB.dst, instr->code.ADD.src1, instr->code.ADD.src2);
+                printf("ADD %d %d %d\n", instr->code.ADD.r_dst, instr->code.ADD.r_src1, instr->code.ADD.r_src2);
                 break;
             }
             case OPCODE_SUB:
             {
-                printf("SUB %d %d %d \n", instr->code.SUB.dst, instr->code.SUB.src1, instr->code.SUB.src2);
+                printf("SUB %d %d %d \n", instr->code.SUB.r_dst, instr->code.SUB.r_src1, instr->code.SUB.r_src2);
                 break;
             }
             case OPCODE_AND:
             {
-                printf("AND %d %d %d \n", instr->code.AND.dst, instr->code.AND.src1, instr->code.AND.src2);
+                printf("AND %d %d %d \n", instr->code.AND.r_dst, instr->code.AND.r_src1, instr->code.AND.r_src2);
                 break;
             }
             case OPCODE_OR:
             {
-                printf("OR %d %d %d \n", instr->code.OR.dst, instr->code.OR.src1, instr->code.OR.src2);
+                printf("OR %d %d %d \n", instr->code.OR.r_dst, instr->code.OR.r_src1, instr->code.OR.r_src2);
                 break;
             }
             case OPCODE_NOT:
             {
-                printf("NOT %d %d \n", instr->code.NOT.dst, instr->code.NOT.src);
+                printf("NOT %d %d \n", instr->code.NOT.r_dst, instr->code.NOT.r_src);
                 break;
             }
             case OPCODE_CMP:
             {
-                printf("CMP %d %d %d \n", instr->code.CMP.dst, instr->code.CMP.src1, instr->code.CMP.src2);
+                printf("CMP %d %d %d \n", instr->code.CMP.r_dst, instr->code.CMP.r_src1, instr->code.CMP.r_src2);
                 break;
             }
             case OPCODE_INC:
             {
-                printf("INC %d \n", instr->code.INC.src);
+                printf("INC %d \n", instr->code.INC.r_src);
                 break;
             }
             case OPCODE_DEC:
             {
-                printf("DEC %d \n", instr->code.DEC.src);
+                printf("DEC %d \n", instr->code.DEC.r_src);
                 break;
             }
             case OPCODE_MOV:
             {
-                printf("MOV %d %d\n", instr->code.MOV.src, instr->code.MOV.dst);
+                printf("MOV %d %d\n", instr->code.MOV.r_src, instr->code.MOV.r_dst);
                 break;
             }
             case OPCODE_LOAD:
             {
-                printf("LOAD %d %d\n", instr->code.LOAD.dst, instr->code.LOAD.src);
+                printf("LOAD %d %d\n", instr->code.LOAD.r_dst, instr->code.LOAD.m_src);
                 break;
             }
             case OPCODE_STORE:
             {
-                printf("STORE %d %d\n", instr->code.STORE.src, instr->code.STORE.dst);
+                printf("STORE %d %d\n", instr->code.STORE.r_src, instr->code.STORE.m_addr);
                 break;
             }
-            case OPCODE_PRINT_REG:
+            case OPCODE_PRINTR:
             {
-                printf("PRINT_REG %d\n", instr->code.PRINT_REG.src);
+                printf("PRINTR %d\n", instr->code.PRINTR.r_src);
                 break;
             }
             case OPCODE_JNZ:
             {
-                printf("JNZ %d\n", instr->code.JNZ.src);
+                printf("JNZ %d\n", instr->code.JNZ.r_src);
                 break;
             }
             case OPCODE_HALT:
@@ -324,7 +336,7 @@ public:
                 break;
             }
             default:
-                throw std::runtime_error("foobar");
+                throw std::runtime_error("Unrecognized opcode");
         }
     }
 
@@ -340,14 +352,14 @@ public:
     void tick()
     {
         double pause = 1.0 / CPU_FREQUENCY_HZ;
-        std::chrono::milliseconds duration(static_cast<int>(pause * 1000));
-        std::this_thread::sleep_for(duration);
+        std::chrono::milliseconds period(static_cast<int>(pause * 1000));
+        std::this_thread::sleep_for(period);
 
         if (ip > -1)
         {
             Instruction *instr = &program->at(ip);
 
-            if(printInstructions)
+            if (trace)
             {
                 print(instr);
             }
@@ -356,6 +368,23 @@ public:
         }
 
         sb_tick();
+    }
+
+    std::optional<int> sb_lookup(int addr)
+    {
+        // todo: instead of iterating over all values, there should be a directly-mapped hash-table
+        // so that we can use the last 12 bits of the address and do a lookup. Then we also need
+        // to handle the 4K aliasing problem.
+        for (uint64_t k = sb.tail; k < sb.head; k++)
+        {
+            StoreBufferEntry &entry = sb.entries[k % STORE_BUFFER_CAPACITY];
+            if (entry.addr == addr)
+            {
+                return std::optional<int>(entry.value);
+            }
+        }
+
+        return std::nullopt;
     }
 
     void sb_add(int value, int addr)
@@ -380,45 +409,46 @@ public:
 int main()
 {
     CPU *cpu = new CPU();
+    cpu->trace = true;
     cpu->memory->at(0) = 5;
     cpu->memory->at(1) = 20;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_LOAD;
-    cpu->program->back().code.LOAD.src = 0;
-    cpu->program->back().code.LOAD.dst = 0;
+    cpu->program->back().code.LOAD.m_src = 0;
+    cpu->program->back().code.LOAD.r_dst = 0;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_LOAD;
-    cpu->program->back().code.LOAD.src = 1;
-    cpu->program->back().code.LOAD.dst = 1;
+    cpu->program->back().code.LOAD.m_src = 1;
+    cpu->program->back().code.LOAD.r_dst = 1;
 
     cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_PRINT_REG;
-    cpu->program->back().code.PRINT_REG.src = 0;
+    cpu->program->back().opcode = OPCODE_PRINTR;
+    cpu->program->back().code.PRINTR.r_src = 0;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_DEC;
-    cpu->program->back().code.DEC.src = 0;
+    cpu->program->back().code.DEC.r_src = 0;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_STORE;
-    cpu->program->back().code.STORE.src = 0;
-    cpu->program->back().code.STORE.dst = 0;
+    cpu->program->back().code.STORE.r_src = 0;
+    cpu->program->back().code.STORE.m_addr = 0;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_INC;
-    cpu->program->back().code.DEC.src = 1;
+    cpu->program->back().code.DEC.r_src = 1;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_STORE;
-    cpu->program->back().code.STORE.src = 1;
-    cpu->program->back().code.STORE.dst = 1;
+    cpu->program->back().code.STORE.r_src = 1;
+    cpu->program->back().code.STORE.m_addr = 1;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_JNZ;
-    cpu->program->back().code.JNZ.src = 0;
-    cpu->program->back().code.JNZ.target = 2;
+    cpu->program->back().code.JNZ.r_src = 0;
+    cpu->program->back().code.JNZ.p_target = 2;
 
     cpu->program->push_back(Instruction());
     cpu->program->back().opcode = OPCODE_HALT;

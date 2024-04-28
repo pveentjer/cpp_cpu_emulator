@@ -1,6 +1,18 @@
 TODO
 
-- program loader. Current way to load a program is a pain
+- pass program to load from the command line
+
+- program loader: should support comments
+
+- program loader: deal with program literals
+
+- program loader: should support labels
+
+- program loader: should support variables
+
+- program loader: should properly close file on error
+
+- support speculative execution
 
 - pipelining
 
@@ -9,6 +21,8 @@ TODO
 - out of order execution
 
 DONE
+
+- program loader. Current way to load a program is a pain
 
 - store buffer
 

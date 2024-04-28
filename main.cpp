@@ -2,6 +2,8 @@
 #include <vector>
 #include <thread>
 #include <optional>
+#include <map>
+#include <fstream>
 
 static const int REGISTER_COUNT = 32;
 static const int MEMORY_SIZE = 16;
@@ -31,6 +33,24 @@ static const int OPCODE_JNZ = 13;
 // copy between registers
 static const int OPCODE_MOV = 14;
 
+
+std::map<std::string, int> mnemonicToOpcode = {
+        {"ADD",    OPCODE_ADD},
+        {"SUB",    OPCODE_SUB},
+        {"AND",    OPCODE_AND},
+        {"OR",     OPCODE_OR},
+        {"NOT",    OPCODE_NOT},
+        {"CMP",    OPCODE_CMP},
+        {"MOV",    OPCODE_MOV},
+        {"LOAD",   OPCODE_LOAD},
+        {"STORE",  OPCODE_STORE},
+        {"PRINTR", OPCODE_PRINTR},
+        {"INC",    OPCODE_INC},
+        {"DEC",    OPCODE_DEC},
+        {"JNZ",    OPCODE_JNZ},
+        {"HALT",   OPCODE_HALT}
+};
+
 struct Instruction
 {
     int opcode;
@@ -45,57 +65,137 @@ struct Instruction
         } ADD;
         struct
         {
-            uint32_t  r_src1, r_src2, r_dst;
+            uint32_t r_src1, r_src2, r_dst;
         } SUB;
         struct
         {
-            uint32_t  r_src1, r_src2, r_dst;
+            uint32_t r_src1, r_src2, r_dst;
         } AND;
         struct
         {
-            uint32_t  r_src1, r_src2, r_dst;
+            uint32_t r_src1, r_src2, r_dst;
         } OR;
         struct
         {
-            uint32_t  r_src, r_dst;
+            uint32_t r_src, r_dst;
         } NOT;
         struct
         {
-            uint32_t  m_src, r_dst;
+            uint32_t m_src, r_dst;
         } LOAD;
         struct
         {
-            uint32_t  r_src, m_addr;
+            uint32_t r_src, m_dst;
         } STORE;
         struct
         {
-            uint32_t  r_src, r_dst;
+            uint32_t r_src, r_dst;
         } MOV;
         struct
         {
-            uint32_t  r_src;
+            uint32_t r_src;
         } PRINTR;
         struct
         {
-            uint32_t  r_src;
+            uint32_t r_src;
         } INC;
         struct
         {
-            uint32_t  r_src;
+            uint32_t r_src;
         } DEC;
         struct
         {
         } HALT;
         struct
         {
-            uint32_t  r_src1, r_src2, r_dst;
+            uint32_t r_src1, r_src2, r_dst;
         } CMP;
         struct
         {
-            uint32_t  r_src, p_target;
+            uint32_t r_src, p_target;
         } JNZ;
     } code;
 };
+
+void print_instr(Instruction *instr)
+{
+    switch (instr->opcode)
+    {
+        case OPCODE_ADD:
+        {
+            printf("ADD %d %d %d\n", instr->code.ADD.r_dst, instr->code.ADD.r_src1, instr->code.ADD.r_src2);
+            break;
+        }
+        case OPCODE_SUB:
+        {
+            printf("SUB %d %d %d \n", instr->code.SUB.r_dst, instr->code.SUB.r_src1, instr->code.SUB.r_src2);
+            break;
+        }
+        case OPCODE_AND:
+        {
+            printf("AND %d %d %d \n", instr->code.AND.r_dst, instr->code.AND.r_src1, instr->code.AND.r_src2);
+            break;
+        }
+        case OPCODE_OR:
+        {
+            printf("OR %d %d %d \n", instr->code.OR.r_dst, instr->code.OR.r_src1, instr->code.OR.r_src2);
+            break;
+        }
+        case OPCODE_NOT:
+        {
+            printf("NOT %d %d \n", instr->code.NOT.r_dst, instr->code.NOT.r_src);
+            break;
+        }
+        case OPCODE_CMP:
+        {
+            printf("CMP %d %d %d \n", instr->code.CMP.r_dst, instr->code.CMP.r_src1, instr->code.CMP.r_src2);
+            break;
+        }
+        case OPCODE_INC:
+        {
+            printf("INC %d \n", instr->code.INC.r_src);
+            break;
+        }
+        case OPCODE_DEC:
+        {
+            printf("DEC %d \n", instr->code.DEC.r_src);
+            break;
+        }
+        case OPCODE_MOV:
+        {
+            printf("MOV %d %d\n", instr->code.MOV.r_src, instr->code.MOV.r_dst);
+            break;
+        }
+        case OPCODE_LOAD:
+        {
+            printf("LOAD %d %d\n", instr->code.LOAD.r_dst, instr->code.LOAD.m_src);
+            break;
+        }
+        case OPCODE_STORE:
+        {
+            printf("STORE %d %d\n", instr->code.STORE.r_src, instr->code.STORE.m_dst);
+            break;
+        }
+        case OPCODE_PRINTR:
+        {
+            printf("PRINTR %d\n", instr->code.PRINTR.r_src);
+            break;
+        }
+        case OPCODE_JNZ:
+        {
+            printf("JNZ %d\n", instr->code.JNZ.r_src);
+            break;
+        }
+        case OPCODE_HALT:
+        {
+            printf("HALT\n");
+            break;
+        }
+        default:
+            throw std::runtime_error("Unrecognized opcode");
+    }
+}
+
 
 struct StoreBufferEntry
 {
@@ -119,6 +219,7 @@ public:
     std::vector<int> *registers;
     std::vector<int> *memory;
     StoreBuffer sb;
+    // when true, prints every instruction before being executed.
     bool trace;
 
     CPU()
@@ -140,6 +241,209 @@ public:
         trace = false;
     }
 
+    int load_program(std::string file)
+    {
+        // Open the file containing the program instructions
+        std::ifstream infile(file);
+        if (!infile.is_open())
+        {
+            std::cerr << "Failed to open program file." << std::endl;
+            return 1;
+        }
+
+        uint32_t line = 0;
+        std::string mnemonic;
+        while (infile >> mnemonic)
+        {
+            line++;
+            Instruction instr;
+            printf("mnemonic %s\n", mnemonic.c_str());
+            auto it = mnemonicToOpcode.find(mnemonic);
+            if (it != mnemonicToOpcode.end())
+            {
+                instr.opcode = it->second;
+
+                switch (instr.opcode)
+                {
+
+                    case OPCODE_AND:
+                    {
+                        int r_src1, r_src2;
+                        if (infile >> r_src1 >> r_src2)
+                        {
+                            instr.code.AND.r_src1 = r_src1;
+                            instr.code.AND.r_src2 = r_src2;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid AND instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_OR:
+                    {
+                        int r_src1, r_src2;
+                        if (infile >> r_src1 >> r_src2)
+                        {
+                            instr.code.OR.r_src1 = r_src1;
+                            instr.code.OR.r_src2 = r_src2;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid OR instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_NOT:
+                    {
+                        int r_src;
+                        if (infile >> r_src)
+                        {
+                            instr.code.NOT.r_src = r_src;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid NOT instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_ADD:
+                    {
+                        int r_src1, r_src2;
+                        if (infile >> r_src1 >> r_src2)
+                        {
+                            instr.code.ADD.r_src1 = r_src1;
+                            instr.code.ADD.r_src2 = r_src2;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid ADD instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_SUB:
+                    {
+                        int r_src1, r_src2;
+                        if (infile >> r_src1 >> r_src2)
+                        {
+                            instr.code.SUB.r_src1 = r_src1;
+                            instr.code.SUB.r_src2 = r_src2;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid SUB instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_DEC:
+                    {
+                        int r_src;
+                        if (infile >> r_src)
+                        {
+                            instr.code.DEC.r_src = r_src;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid DEC instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_INC:
+                    {
+                        int r_src;
+                        if (infile >> r_src)
+                        {
+                            instr.code.INC.r_src = r_src;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid INC instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_LOAD:
+                    {
+                        int m_src, r_dst;
+                        if (infile >> m_src >> r_dst)
+                        {
+                            instr.code.LOAD.m_src = m_src;
+                            instr.code.LOAD.r_dst = r_dst;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid LOAD instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_STORE:
+                    {
+                        int r_src, m_dst;
+                        if (infile >> r_src >> m_dst)
+                        {
+                            instr.code.STORE.r_src = r_src;
+                            instr.code.STORE.m_dst = m_dst;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid STORE instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_JNZ:
+                    {
+                        int r_src, p_target;
+                        if (infile >> r_src >> p_target)
+                        {
+                            instr.code.JNZ.r_src = r_src;
+                            instr.code.JNZ.p_target = p_target;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid JNZ instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                    case OPCODE_PRINTR:
+                    {
+                        int r_src;
+                        if (infile >> r_src)
+                        {
+                            instr.code.PRINTR.r_src = r_src;
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid PRINTR instruction format at line " << line << "." << std::endl;
+                            return 1;
+                        }
+                        break;
+                    }
+                }
+
+                program->push_back(instr);
+            }
+            else
+            {
+                std::cerr << "Unknown mnemonic: " << mnemonic << std::endl;
+                return 1;
+            }
+        }
+
+        // todo: file is not closed on error.
+        // Close the file
+        infile.close();
+        return 0;
+    }
+
     void print_memory()
     {
         printf("------------------Memory----------------\n");
@@ -155,8 +459,8 @@ public:
         {
             case OPCODE_ADD:
             {
-                int  v1 = registers->at(instr->code.ADD.r_src1);
-                int  v2 = registers->at(instr->code.ADD.r_src2);
+                int v1 = registers->at(instr->code.ADD.r_src1);
+                int v2 = registers->at(instr->code.ADD.r_src2);
                 registers->at(instr->code.ADD.r_dst) = v1 + v2;
                 ip++;
                 break;
@@ -233,7 +537,7 @@ public:
             }
             case OPCODE_STORE:
             {
-                sb_write(instr->code.STORE.m_addr, registers->at(instr->code.STORE.r_src));
+                sb_write(instr->code.STORE.m_dst, registers->at(instr->code.STORE.r_src));
                 ip++;
                 break;
             }
@@ -267,84 +571,6 @@ public:
         }
     }
 
-    static void print(Instruction *instr)
-    {
-        switch (instr->opcode)
-        {
-            case OPCODE_ADD:
-            {
-                printf("ADD %d %d %d\n", instr->code.ADD.r_dst, instr->code.ADD.r_src1, instr->code.ADD.r_src2);
-                break;
-            }
-            case OPCODE_SUB:
-            {
-                printf("SUB %d %d %d \n", instr->code.SUB.r_dst, instr->code.SUB.r_src1, instr->code.SUB.r_src2);
-                break;
-            }
-            case OPCODE_AND:
-            {
-                printf("AND %d %d %d \n", instr->code.AND.r_dst, instr->code.AND.r_src1, instr->code.AND.r_src2);
-                break;
-            }
-            case OPCODE_OR:
-            {
-                printf("OR %d %d %d \n", instr->code.OR.r_dst, instr->code.OR.r_src1, instr->code.OR.r_src2);
-                break;
-            }
-            case OPCODE_NOT:
-            {
-                printf("NOT %d %d \n", instr->code.NOT.r_dst, instr->code.NOT.r_src);
-                break;
-            }
-            case OPCODE_CMP:
-            {
-                printf("CMP %d %d %d \n", instr->code.CMP.r_dst, instr->code.CMP.r_src1, instr->code.CMP.r_src2);
-                break;
-            }
-            case OPCODE_INC:
-            {
-                printf("INC %d \n", instr->code.INC.r_src);
-                break;
-            }
-            case OPCODE_DEC:
-            {
-                printf("DEC %d \n", instr->code.DEC.r_src);
-                break;
-            }
-            case OPCODE_MOV:
-            {
-                printf("MOV %d %d\n", instr->code.MOV.r_src, instr->code.MOV.r_dst);
-                break;
-            }
-            case OPCODE_LOAD:
-            {
-                printf("LOAD %d %d\n", instr->code.LOAD.r_dst, instr->code.LOAD.m_src);
-                break;
-            }
-            case OPCODE_STORE:
-            {
-                printf("STORE %d %d\n", instr->code.STORE.r_src, instr->code.STORE.m_addr);
-                break;
-            }
-            case OPCODE_PRINTR:
-            {
-                printf("PRINTR %d\n", instr->code.PRINTR.r_src);
-                break;
-            }
-            case OPCODE_JNZ:
-            {
-                printf("JNZ %d\n", instr->code.JNZ.r_src);
-                break;
-            }
-            case OPCODE_HALT:
-            {
-                printf("HALT\n");
-                break;
-            }
-            default:
-                throw std::runtime_error("Unrecognized opcode");
-        }
-    }
 
     bool tick_again() const
     {
@@ -367,7 +593,7 @@ public:
 
             if (trace)
             {
-                print(instr);
+                print_instr(instr);
             }
 
             execute(instr);
@@ -376,6 +602,7 @@ public:
         sb_tick();
     }
 
+    // todo: move to sb.
     std::optional<int> sb_lookup(int addr)
     {
         // todo: instead of iterating over all values, there should be a directly-mapped hash-table
@@ -393,6 +620,7 @@ public:
         return std::nullopt;
     }
 
+    // todo: move to sb
     void sb_write(int addr, int value)
     {
         StoreBufferEntry &entry = sb.entries[sb.tail % STORE_BUFFER_CAPACITY];
@@ -401,6 +629,7 @@ public:
         sb.tail++;
     }
 
+    // todo: move to sb.
     void sb_tick()
     {
         if (sb.head != sb.tail)
@@ -419,45 +648,11 @@ int main()
     cpu->memory->at(0) = 5;
     cpu->memory->at(1) = 20;
 
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_LOAD;
-    cpu->program->back().code.LOAD.m_src = 0;
-    cpu->program->back().code.LOAD.r_dst = 0;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_LOAD;
-    cpu->program->back().code.LOAD.m_src = 1;
-    cpu->program->back().code.LOAD.r_dst = 1;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_PRINTR;
-    cpu->program->back().code.PRINTR.r_src = 0;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_DEC;
-    cpu->program->back().code.DEC.r_src = 0;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_STORE;
-    cpu->program->back().code.STORE.r_src = 0;
-    cpu->program->back().code.STORE.m_addr = 0;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_INC;
-    cpu->program->back().code.DEC.r_src = 1;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_STORE;
-    cpu->program->back().code.STORE.r_src = 1;
-    cpu->program->back().code.STORE.m_addr = 1;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_JNZ;
-    cpu->program->back().code.JNZ.r_src = 0;
-    cpu->program->back().code.JNZ.p_target = 2;
-
-    cpu->program->push_back(Instruction());
-    cpu->program->back().opcode = OPCODE_HALT;
+    int res = cpu->load_program("program.txt");
+    if (res != 0)
+    {
+        return -1;
+    }
 
     while (!cpu->tick_again())
     {

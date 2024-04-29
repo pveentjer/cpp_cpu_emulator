@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
+#include <map>
+#include <unordered_map>
 
 // adds 2 registers and writes the result in another
 static const int OPCODE_ADD = 1;
@@ -28,6 +30,23 @@ static const int OPCODE_JNZ = 13;
 // copy between registers
 static const int OPCODE_MOV = 14;
 
+
+static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
+        {"ADD",    OPCODE_ADD},
+        {"SUB",    OPCODE_SUB},
+        {"AND",    OPCODE_AND},
+        {"OR",     OPCODE_OR},
+        {"NOT",    OPCODE_NOT},
+        {"CMP",    OPCODE_CMP},
+        {"MOV",    OPCODE_MOV},
+        {"LOAD",   OPCODE_LOAD},
+        {"STORE",  OPCODE_STORE},
+        {"PRINTR", OPCODE_PRINTR},
+        {"INC",    OPCODE_INC},
+        {"DEC",    OPCODE_DEC},
+        {"JNZ",    OPCODE_JNZ},
+        {"HALT",   OPCODE_HALT}
+};
 
 struct Instruction {
     int opcode;

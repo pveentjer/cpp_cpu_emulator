@@ -7,28 +7,12 @@
 #include <algorithm>
 #include <sstream>
 #include "instructions.h"
+#include "utils.h"
 
 static const int REGISTER_COUNT = 32;
 static const int MEMORY_SIZE = 16;
 static const int STORE_BUFFER_CAPACITY = 4;
 static const int CPU_FREQUENCY_HZ = 1;
-
-std::map<std::string, int> mnemonicToOpcode = {
-        {"ADD",    OPCODE_ADD},
-        {"SUB",    OPCODE_SUB},
-        {"AND",    OPCODE_AND},
-        {"OR",     OPCODE_OR},
-        {"NOT",    OPCODE_NOT},
-        {"CMP",    OPCODE_CMP},
-        {"MOV",    OPCODE_MOV},
-        {"LOAD",   OPCODE_LOAD},
-        {"STORE",  OPCODE_STORE},
-        {"PRINTR", OPCODE_PRINTR},
-        {"INC",    OPCODE_INC},
-        {"DEC",    OPCODE_DEC},
-        {"JNZ",    OPCODE_JNZ},
-        {"HALT",   OPCODE_HALT}
-};
 
 struct StoreBufferEntry {
     int value;
@@ -39,12 +23,45 @@ struct StoreBuffer {
     StoreBufferEntry entries[STORE_BUFFER_CAPACITY];
     uint64_t head;
     uint64_t tail;
+
+    std::optional<int> lookup(int addr) {
+        // todo: instead of iterating over all values, there should be a directly-mapped hash-table
+        // so that we can use the last 12 bits of the address and do a lookup. Then we also need
+        // to handle the 4K aliasing problem.
+        for (uint64_t k = tail; k < head; k++) {
+            StoreBufferEntry &entry = entries[k % STORE_BUFFER_CAPACITY];
+            if (entry.addr == addr) {
+                return std::optional<int>(entry.value);
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    void write(int addr, int value) {
+        StoreBufferEntry &entry = entries[tail % STORE_BUFFER_CAPACITY];
+        entry.value = value;
+        entry.addr = addr;
+        tail++;
+    }
+
+    void tick(std::vector<int> *memory) {
+        if (head != tail) {
+            StoreBufferEntry &entry = entries[head % STORE_BUFFER_CAPACITY];
+            memory->at(entry.addr) = entry.value;
+            head++;
+        }
+    }
 };
 
-std::string trim(const std::string &str) {
-    auto start = std::find_if_not(str.begin(), str.end(), [](unsigned char c) { return std::isspace(c); });
-    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char c) { return std::isspace(c); }).base();
-    return (start < end ? std::string(start, end) : "");
+
+bool isValidLabel(const std::string &s) {
+    for (char c: s) {
+        if (!std::isalpha(c)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 class CPU {
@@ -82,6 +99,7 @@ public:
             return 1;
         }
 
+        std::unordered_map<std::string, int> labels = std::unordered_map<std::string, int>();
         std::string lineText;
         uint32_t line_nr = 0;
         while (std::getline(infile, lineText)) {
@@ -99,18 +117,38 @@ public:
                 continue;
             }
 
-            printf("[%s]\n",lineText.c_str());
+            printf("[%s]\n", lineText.c_str());
 
             std::istringstream iss(lineText);
-            std::string mnemonic;
-            if (!(iss >> mnemonic)) {
+
+            std::string first_token;
+            if (!(iss >> first_token)) {
                 std::cerr << "Invalid instruction format at line " << line_nr << "." << std::endl;
                 return 1;
             }
 
+            // check if it is a label
+            if (endsWith(first_token, ":")) {
+                std::string label = removeLast(first_token);
+                if (!isValidLabel(label)) {
+                    std::cerr << "Invalid label [" << label << "]at line " << line_nr << "." << std::endl;
+                    return 1;
+
+                }
+
+                std::optional<int> x = mapGet(labels, label);
+                if (x.has_value()) {
+                    std::cerr << "Label [" << label << "] not unique at line " << line_nr << "." << std::endl;
+                    return 1;
+                }
+
+                labels.insert({label, program->size()});
+                continue;
+            }
+
             Instruction instr;
-            auto it = mnemonicToOpcode.find(mnemonic);
-            if (it != mnemonicToOpcode.end()) {
+            auto it = MNEMONIC_TO_OPCODE.find(first_token);
+            if (it != MNEMONIC_TO_OPCODE.end()) {
                 instr.opcode = it->second;
 
                 switch (instr.opcode) {
@@ -211,10 +249,18 @@ public:
                         break;
                     }
                     case OPCODE_JNZ: {
-                        int r_src, p_target;
-                        if (iss >> r_src >> p_target) {
+                        int r_src;
+                        std::string label;
+                        if (iss >> r_src >> label) {
                             instr.code.JNZ.r_src = r_src;
-                            instr.code.JNZ.p_target = p_target;
+                            std::optional<int> labelAddr = mapGet(labels, label);
+                            if (labelAddr.has_value()) {
+                                instr.code.JNZ.p_target = labelAddr.value();
+                            } else {
+                                std::cerr << "Unknown target [" << label << "] at line_nr " << line_nr << "."
+                                          << std::endl;
+                                return 1;
+                            }
                         } else {
                             std::cerr << "Invalid JNZ instruction format at line_nr " << line_nr << "." << std::endl;
                             return 1;
@@ -235,7 +281,7 @@ public:
 
                 program->push_back(instr);
             } else {
-                std::cerr << "Unknown mnemonic: " << mnemonic << std::endl;
+                std::cerr << "Unknown mnemonic: " << first_token << std::endl;
                 return 1;
             }
         }
@@ -316,7 +362,7 @@ public:
                 // we first need to look there before returning the value otherwise the CPU would
                 // not be able to see some of its own writes and become incoherent.
 
-                int value = sb_lookup(instr->code.LOAD.m_src)
+                int value = sb.lookup(instr->code.LOAD.m_src)
                         .value_or(memory->at(instr->code.LOAD.m_src));
 
                 registers->at(instr->code.LOAD.r_dst) = value;
@@ -324,7 +370,7 @@ public:
                 break;
             }
             case OPCODE_STORE: {
-                sb_write(instr->code.STORE.m_dst, registers->at(instr->code.STORE.r_src));
+                sb.write(instr->code.STORE.m_dst, registers->at(instr->code.STORE.r_src));
                 ip++;
                 break;
             }
@@ -352,7 +398,6 @@ public:
         }
     }
 
-
     bool tick_again() const {
         if (ip > -1) {
             return false;
@@ -375,39 +420,7 @@ public:
             execute(instr);
         }
 
-        sb_tick();
-    }
-
-    // todo: move to sb.
-    std::optional<int> sb_lookup(int addr) {
-        // todo: instead of iterating over all values, there should be a directly-mapped hash-table
-        // so that we can use the last 12 bits of the address and do a lookup. Then we also need
-        // to handle the 4K aliasing problem.
-        for (uint64_t k = sb.tail; k < sb.head; k++) {
-            StoreBufferEntry &entry = sb.entries[k % STORE_BUFFER_CAPACITY];
-            if (entry.addr == addr) {
-                return std::optional<int>(entry.value);
-            }
-        }
-
-        return std::nullopt;
-    }
-
-    // todo: move to sb
-    void sb_write(int addr, int value) {
-        StoreBufferEntry &entry = sb.entries[sb.tail % STORE_BUFFER_CAPACITY];
-        entry.value = value;
-        entry.addr = addr;
-        sb.tail++;
-    }
-
-    // todo: move to sb.
-    void sb_tick() {
-        if (sb.head != sb.tail) {
-            StoreBufferEntry &entry = sb.entries[sb.head % STORE_BUFFER_CAPACITY];
-            memory->at(entry.addr) = entry.value;
-            sb.head++;
-        }
+        sb.tick(memory);
     }
 };
 

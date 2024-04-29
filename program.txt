@@ -1,9 +1,6 @@
-LOAD 0 1
-LOAD 1 1
-PRINTR 0
-DEC 0
-STORE 0 0
-INC 1
-STORE 1 1
-JNZ 0 0
-HALT
+    LOAD 0 0
+again:
+    PRINTR 0
+    DEC 0
+    JNZ 0 again
+    HALT

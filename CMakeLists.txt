@@ -7,4 +7,8 @@ add_executable(cpu_emulator main.cpp
         instructions.cpp
         instructions.h
         utils.cpp
-        utils.h)
+        utils.h
+        loader.cpp
+        loader.h
+        cpu.cpp
+        cpu.h)

@@ -48,7 +48,7 @@ static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
         {"HALT",   OPCODE_HALT}
 };
 
-struct Instruction {
+struct Instr {
     int opcode;
     // r_ prefix means it is a register
     // m_ prefix means it is from memory
@@ -98,6 +98,6 @@ struct Instruction {
     } code;
 };
 
-void print_instr(Instruction *instr);
+void print_instr(Instr *instr);
 
 #endif //CPU_EMULATOR_INSTRUCTIONS_H

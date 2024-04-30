@@ -130,7 +130,7 @@ int load_program(CPU *cpu, string file)
             continue;
         }
 
-        Instruction instr;
+        Instr instr;
         auto it = MNEMONIC_TO_OPCODE.find(first_token);
         if (it != MNEMONIC_TO_OPCODE.end())
         {

@@ -4,7 +4,7 @@
 
 #include "cpu.h"
 
-void CPU::execute(Instruction *instr)
+void CPU::execute(Instr *instr)
 {
     switch (instr->opcode)
     {
@@ -139,14 +139,27 @@ void CPU::tick()
 
     if (ip > -1)
     {
-        Instruction *instr = &program->at(ip);
-
-        if (trace)
+        if (instr_state.phase == 0)
         {
-            print_instr(instr);
+            instr_state.phase = 1;
+            instr_state.instr = &program->at(ip);
         }
 
-        execute(instr);
+        if (instr_state.phase == 1 && trace)
+        {
+            print_instr(instr_state.instr);
+        }
+
+        if (instr_state.phase == instr_latency)
+        {
+            execute(instr_state.instr);
+            instr_state.phase = 0;
+            instr_state.instr = nullptr;
+        }
+        else
+        {
+            instr_state.phase++;
+        }
     }
 
     sb.tick(memory);

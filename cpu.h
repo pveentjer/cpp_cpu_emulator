@@ -29,6 +29,12 @@ struct StoreBufferEntry
     int addr;
 };
 
+struct InstrState
+{
+    Instr *instr;
+    int phase;
+};
+
 struct StoreBuffer
 {
     StoreBufferEntry entries[STORE_BUFFER_CAPACITY];
@@ -72,7 +78,6 @@ struct StoreBuffer
 };
 
 
-
 using namespace std;
 
 class CPU
@@ -80,17 +85,19 @@ class CPU
 
 public:
     int32_t ip = -1;
-    vector<Instruction> *program;
+    uint8_t instr_latency = 2;
+    vector<Instr> *program;
     vector<int> *registers;
     vector<int> *memory;
     StoreBuffer sb;
+    InstrState instr_state;
     // when true, prints every instruction before being executed.
     bool trace;
 
     CPU()
     {
         ip = 0;
-        program = new vector<Instruction>();
+        program = new vector<Instr>();
         registers = new vector<int>();
         for (int k = 0; k < REGISTER_COUNT; k++)
         {
@@ -104,12 +111,13 @@ public:
         sb.head = 0;
         sb.tail = 0;
         trace = false;
+        instr_state.phase = 0;
     }
 
 
     void print_memory() const;
 
-    void execute(Instruction *instr);
+    void execute(Instr *instr);
 
     bool tick_again() const;
 

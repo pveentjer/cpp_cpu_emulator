@@ -5,7 +5,7 @@
 #include "instructions.h"
 
 
-void print_instr(Instruction *instr)
+void print_instr(Instr *instr)
 {
     switch (instr->opcode)
     {

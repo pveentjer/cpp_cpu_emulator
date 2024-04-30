@@ -1,13 +1,4 @@
-#include <iostream>
-#include <vector>
-#include <thread>
 #include <optional>
-#include <map>
-#include <fstream>
-#include <algorithm>
-#include <sstream>
-#include "instructions.h"
-#include "utils.h"
 #include "cpu.h"
 #include "loader.h"
 

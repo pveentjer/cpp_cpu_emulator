@@ -1,4 +1,9 @@
-    LOAD 0 0
+; variables
+    VAR A 10
+    VAR B 10
+
+; program
+    LOAD 0 A
 again:
     PRINTR 0
     DEC 0

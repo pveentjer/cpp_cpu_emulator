@@ -5,8 +5,10 @@
 #include "instructions.h"
 
 
-void print_instr(Instruction *instr) {
-    switch (instr->opcode) {
+void print_instr(Instruction *instr)
+{
+    switch (instr->opcode)
+    {
         case OPCODE_ADD:
             printf("ADD R%d R%d R%d\n", instr->code.ADD.r_dst, instr->code.ADD.r_src1, instr->code.ADD.r_src2);
             break;

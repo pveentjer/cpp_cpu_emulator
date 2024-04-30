@@ -4,11 +4,7 @@ TODO
 
 - pass program to load from the command line
 
-- program loader: deal with program literals
-
-- program loader: should support labels
-
-- program loader: should support variables
+- program loader: deal with loading literals
 
 - program loader: should properly close file on error
 
@@ -21,6 +17,10 @@ TODO
 - out of order execution
 
 DONE
+
+- program loader: should support variables
+
+- program loader: should support labels
 
 - program loader: should support comments
 

@@ -19,7 +19,7 @@
 static const int REGISTER_COUNT = 32;
 static const int MEMORY_SIZE = 16;
 static const int STORE_BUFFER_CAPACITY = 4;
-static const int CPU_FREQUENCY_HZ = 1;
+static const int CPU_FREQUENCY_HZ = 3;
 
 using namespace std;
 
@@ -29,10 +29,14 @@ struct StoreBufferEntry
     int addr;
 };
 
-struct InstrState
+static const int STAGE_FETCH = 1;
+static const int STAGE_DECODE = 2;
+static const int STAGE_EXECUTE = 3;
+
+struct Slot
 {
     Instr *instr;
-    int phase;
+    int stage;
 };
 
 struct StoreBuffer
@@ -85,12 +89,11 @@ class CPU
 
 public:
     int32_t ip = -1;
-    uint8_t instr_latency = 2;
     vector<Instr> *program;
     vector<int> *registers;
     vector<int> *memory;
     StoreBuffer sb;
-    InstrState instr_state;
+    Slot slot;
     // when true, prints every instruction before being executed.
     bool trace;
 
@@ -111,9 +114,8 @@ public:
         sb.head = 0;
         sb.tail = 0;
         trace = false;
-        instr_state.phase = 0;
+        slot.stage = STAGE_FETCH;
     }
-
 
     void print_memory() const;
 

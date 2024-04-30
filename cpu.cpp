@@ -124,11 +124,12 @@ void CPU::execute(Instr *instr)
 
 bool CPU::tick_again() const
 {
+
     if (ip > -1)
     {
         return false;
     }
-    return sb.head == sb.tail;
+    return sb.head != sb.tail;
 }
 
 void CPU::tick()
@@ -139,26 +140,27 @@ void CPU::tick()
 
     if (ip > -1)
     {
-        if (instr_state.phase == 0)
+        switch (slot.stage)
         {
-            instr_state.phase = 1;
-            instr_state.instr = &program->at(ip);
-        }
-
-        if (instr_state.phase == 1 && trace)
-        {
-            print_instr(instr_state.instr);
-        }
-
-        if (instr_state.phase == instr_latency)
-        {
-            execute(instr_state.instr);
-            instr_state.phase = 0;
-            instr_state.instr = nullptr;
-        }
-        else
-        {
-            instr_state.phase++;
+            case STAGE_FETCH:
+                slot.instr = &program->at(ip);
+                slot.stage = STAGE_DECODE;
+                break;
+            case STAGE_DECODE:
+                // just an empty stage for now.
+                slot.stage = STAGE_EXECUTE;
+                break;
+            case STAGE_EXECUTE:
+                if (trace)
+                {
+                    print_instr(slot.instr);
+                }
+                execute(slot.instr);
+                slot.instr = nullptr;
+                slot.stage = STAGE_FETCH;
+                break;
+            default:
+                throw std::runtime_error("Unknown stage");
         }
     }
 

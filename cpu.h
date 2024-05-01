@@ -60,6 +60,30 @@ struct StoreBuffer
 };
 
 
+class CPU;
+
+struct Frontend
+{
+    CPU *cpu;
+    int bubbleSize = 0;
+
+    bool tick();
+};
+
+struct Backend
+{
+    CPU *cpu;
+    // when true, prints every instruction before being executed.
+    bool trace = false;
+    vector<int> *registers;
+    StoreBuffer *sb;
+    vector<int> *memory;
+
+    void execute(Instr *instr);
+
+    void tick();
+};
+
 using namespace std;
 
 class CPU
@@ -79,12 +103,11 @@ public:
     vector<int> *registers;
     vector<int> *memory;
     StoreBuffer sb;
-    // when true, prints every instruction before being executed.
-    bool trace;
     Pipeline pipeline;
-    int bubbleSize = 0;
     Instr *nop = new Instr();
     chrono::milliseconds cycle_period_ms;
+    Frontend frontend;
+    Backend backend;
 
     CPU()
     {
@@ -101,12 +124,16 @@ public:
             memory->push_back(0);
         }
 
-        trace = false;
         nop->opcode = OPCODE_NOP;
         pipeline.slots[STAGE_FETCH].instr = nop;
         pipeline.slots[STAGE_DECODE].instr = nop;
         pipeline.slots[STAGE_EXECUTE].instr = nop;
         cycle_period_ms = chrono::milliseconds(static_cast<int>(1000));
+        frontend.cpu = this;
+        backend.cpu = this;
+        backend.registers = registers;
+        backend.sb = &sb;
+        backend.memory = memory;
     }
 
     /**
@@ -120,9 +147,6 @@ public:
 
     void print_memory() const;
 
-    void tick_backend();
-
-    bool tick_frontend();
 };
 
 #endif //CPU_EMULATOR_CPU_H

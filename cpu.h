@@ -54,12 +54,19 @@ struct StoreBuffer
 };
 
 
+struct InstrQueue {
+    Instr* entries;
+    uint16_t capacity;
+    uint64_t head = 0;
+    uint64_t tail = 0;
+};
+
 class CPU;
 
 struct Frontend
 {
     CPU *cpu;
-    int bubbleSize = 0;
+    int bubbleSize;
 
     bool tick();
 };
@@ -68,7 +75,7 @@ struct Backend
 {
     CPU *cpu;
     // when true, prints every instruction before being executed.
-    bool trace = false;
+    bool trace;
     vector<int> *arch_regs;
     StoreBuffer *sb;
     vector<int> *memory;
@@ -90,6 +97,8 @@ struct CPU_Config{
     bool trace = false;
     // the capacity of the store buffer
     uint16_t sb_capacity = 4;
+    // the capacity of the instruction queue between frontend and backend
+    uint8_t instr_queue_capacity = 16;
 };
 
 class CPU
@@ -107,6 +116,7 @@ public:
     vector<Instr> *code;
     vector<int> *arch_regs;
     vector<int> *memory;
+    InstrQueue instr_queue;
     StoreBuffer sb;
     Pipeline pipeline;
     Instr *nop = new Instr();
@@ -140,7 +150,13 @@ public:
         sb.entries = new StoreBufferEntry[config.sb_capacity];
         sb.capacity = config.sb_capacity;
 
+        instr_queue.capacity = config.instr_queue_capacity;
+        instr_queue.head = 0;
+        instr_queue.tail = 0;
+        instr_queue.entries=new (*Instr)[config.instr_queue_capacity];
+
         frontend.cpu = this;
+        frontend.bubbleSize=0;
 
         backend.cpu = this;
         backend.trace = config.trace;

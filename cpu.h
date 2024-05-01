@@ -16,8 +16,7 @@
 
 using namespace std;
 
-struct StoreBufferEntry
-{
+struct StoreBufferEntry {
     int value;
     int addr;
 };
@@ -26,20 +25,17 @@ static const int STAGE_FETCH = 0;
 static const int STAGE_DECODE = 1;
 static const int STAGE_EXECUTE = 0;
 static const int PIPELINE_DEPTH = 3;
-struct Slot
-{
+struct Slot {
     Instr *instr;
 };
 
-struct Pipeline
-{
+struct Pipeline {
     Slot slots[PIPELINE_DEPTH];
     uint8_t index = 0;
 };
 
-struct StoreBuffer
-{
-    StoreBufferEntry* entries;
+struct StoreBuffer {
+    StoreBufferEntry *entries;
     uint16_t capacity;
     uint64_t head = 0;
     uint64_t tail = 0;
@@ -53,9 +49,11 @@ struct StoreBuffer
     void tick(vector<int> *memory);
 };
 
-
+/**
+ * The InstrQueue sits between frontend and backend.
+ */
 struct InstrQueue {
-    Instr* entries;
+    Instr **entries;
     uint16_t capacity;
     uint64_t head = 0;
     uint64_t tail = 0;
@@ -63,16 +61,23 @@ struct InstrQueue {
 
 class CPU;
 
-struct Frontend
-{
+/**
+ * The Frontend is responsible for fetching and decoding instruction
+ * and then will place them on the InstrQueue for the backend.
+ */
+struct Frontend {
     CPU *cpu;
-    int bubbleSize;
+    int bubble_size;
 
     bool tick();
 };
 
-struct Backend
-{
+/**
+ * The Backend is responsible for the actual execution of the instruction.
+ *
+ * It will take instructions from the InstrQueue.
+ */
+struct Backend {
     CPU *cpu;
     // when true, prints every instruction before being executed.
     bool trace;
@@ -87,7 +92,7 @@ struct Backend
 
 using namespace std;
 
-struct CPU_Config{
+struct CPU_Config {
     uint32_t cpu_frequency_Hz = 1;
     // the total available memory in 'ints' the CPU can use.
     uint32_t memory_size = 16;
@@ -101,8 +106,7 @@ struct CPU_Config{
     uint8_t instr_queue_capacity = 16;
 };
 
-class CPU
-{
+class CPU {
 
 private:
 
@@ -124,18 +128,15 @@ public:
     Frontend frontend;
     Backend backend;
 
-    CPU(CPU_Config config)
-    {
+    CPU(CPU_Config config) {
         ip = 0;
         code = new vector<Instr>();
         arch_regs = new vector<int>();
-        for (int k = 0; k < config.arch_reg_count; k++)
-        {
+        for (int k = 0; k < config.arch_reg_count; k++) {
             arch_regs->push_back(0);
         }
         memory = new vector<int>();
-        for (int k = 0; k < config.memory_size; k++)
-        {
+        for (int k = 0; k < config.memory_size; k++) {
             memory->push_back(0);
         }
 
@@ -153,10 +154,10 @@ public:
         instr_queue.capacity = config.instr_queue_capacity;
         instr_queue.head = 0;
         instr_queue.tail = 0;
-        instr_queue.entries=new (*Instr)[config.instr_queue_capacity];
+        instr_queue.entries = new Instr*[config.instr_queue_capacity];
 
         frontend.cpu = this;
-        frontend.bubbleSize=0;
+        frontend.bubble_size = 0;
 
         backend.cpu = this;
         backend.trace = config.trace;

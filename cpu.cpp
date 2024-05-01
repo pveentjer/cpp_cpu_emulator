@@ -94,10 +94,10 @@ bool Frontend::tick()
     Slot *fetchSlot = &cpu->pipeline.slots[cpu->pipeline.index % PIPELINE_DEPTH];
 
     // Fetch
-    if (bubbleSize > 0)
+    if (bubble_size > 0)
     {
         fetchNext = false;
-        bubbleSize--;
+        bubble_size--;
         cpu->pipeline.slots[cpu->pipeline.index % PIPELINE_DEPTH].instr = cpu->nop;
     }
     else
@@ -111,7 +111,7 @@ bool Frontend::tick()
         // added to the pipeline.
         if (instr->opcode == OPCODE_JNZ)
         {
-            bubbleSize = PIPELINE_DEPTH - 1;
+            bubble_size = PIPELINE_DEPTH - 1;
         }
 
         fetchSlot->instr = instr;

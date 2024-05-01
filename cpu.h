@@ -120,6 +120,9 @@ public:
 
     void print_memory() const;
 
+    void tick_backend();
+
+    bool tick_frontend();
 };
 
 #endif //CPU_EMULATOR_CPU_H

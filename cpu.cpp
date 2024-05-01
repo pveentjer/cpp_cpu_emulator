@@ -122,43 +122,9 @@ void CPU::tick()
 {
     if (ip > -1)
     {
-        bool fetchNext;
+        bool fetchNext = tick_frontend();
 
-        Slot *fetchSlot = &pipeline.slots[pipeline.index % PIPELINE_DEPTH];
-
-        // Fetch
-        if (bubbleSize > 0)
-        {
-            fetchNext = false;
-            bubbleSize--;
-            pipeline.slots[pipeline.index % PIPELINE_DEPTH].instr = nop;
-        }
-        else
-        {
-            fetchNext = true;
-            Instr *instr = &program->at(ip);
-
-            // when a branch enters the pipeline, the pipeline will be filled with nops
-            // to prevent a control hazard. This will guarantee that the branch instruction
-            // has been executed, before instructions of the taken or untaken branch are
-            // added to the pipeline.
-            if (instr->opcode == OPCODE_JNZ)
-            {
-                bubbleSize = PIPELINE_DEPTH - 1;
-            }
-
-            fetchSlot->instr = instr;
-        }
-
-        // Decode (ignored)
-
-        // Execute
-        Slot *executeSlot = &pipeline.slots[(pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
-        if (trace)
-        {
-            print_instr(executeSlot->instr);
-        }
-        execute(executeSlot->instr);
+        tick_backend();
 
         if (fetchNext)
         {
@@ -168,6 +134,51 @@ void CPU::tick()
 
     sb.tick(memory);
     cycles++;
+}
+
+bool CPU::tick_frontend()
+{
+    bool fetchNext;
+    Slot *fetchSlot = &pipeline.slots[pipeline.index % PIPELINE_DEPTH];
+
+    // Fetch
+    if (bubbleSize > 0)
+    {
+        fetchNext = false;
+        bubbleSize--;
+        pipeline.slots[pipeline.index % PIPELINE_DEPTH].instr = nop;
+    }
+    else
+    {
+        fetchNext = true;
+        Instr *instr = &program->at(ip);
+
+        // when a branch enters the pipeline, the pipeline will be filled with nops
+        // to prevent a control hazard. This will guarantee that the branch instruction
+        // has been executed, before instructions of the taken or untaken branch are
+        // added to the pipeline.
+        if (instr->opcode == OPCODE_JNZ)
+        {
+            bubbleSize = PIPELINE_DEPTH - 1;
+        }
+
+        fetchSlot->instr = instr;
+    }
+
+    // Decode (ignored)
+
+    return fetchNext;
+}
+
+void CPU::tick_backend()
+{
+    // Execute
+    Slot *executeSlot = &pipeline.slots[(pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
+    if (trace)
+    {
+        print_instr(executeSlot->instr);
+    }
+    execute(executeSlot->instr);
 }
 
 void CPU::print_memory() const

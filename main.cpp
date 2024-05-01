@@ -7,7 +7,7 @@ int main()
     cpu->setTrace(true);
     cpu->setCpuFrequencyHz(10);
 
-    int res = load_program(cpu, "program.txt");
+    int res = load_program(cpu, "program.asm");
     if (res != 0)
     {
         return -1;

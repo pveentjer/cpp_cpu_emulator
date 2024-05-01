@@ -114,7 +114,7 @@ bool Frontend::tick()
     else
     {
         fetchNext = true;
-        Instr *instr = &cpu->program->at(cpu->ip);
+        Instr *instr = &cpu->code->at(cpu->ip);
 
         // when a branch enters the pipeline, the pipeline will be filled with nops
         // to prevent a control hazard. This will guarantee that the branch instruction

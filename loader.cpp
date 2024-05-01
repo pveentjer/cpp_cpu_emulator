@@ -5,6 +5,8 @@
 #include "loader.h"
 #include "instructions.h"
 #include "cpu.h"
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -126,7 +128,7 @@ int load_program(CPU *cpu, string file)
                 return 1;
             }
 
-            labels.insert({label_name, cpu->program->size()});
+            labels.insert({label_name, cpu->code->size()});
             continue;
         }
 
@@ -333,7 +335,7 @@ int load_program(CPU *cpu, string file)
                 }
             }
 
-            cpu->program->push_back(instr);
+            cpu->code->push_back(instr);
         }
         else
         {

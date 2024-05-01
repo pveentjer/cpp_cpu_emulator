@@ -10,13 +10,13 @@ TODO
 
 - support speculative execution
 
-- pipelining
-
 - super scalar
 
 - out of order execution
 
 DONE
+
+- pipelining
 
 - program loader: should support variables
 

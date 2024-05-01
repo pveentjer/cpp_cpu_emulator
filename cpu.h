@@ -10,9 +10,7 @@
 #include <thread>
 #include <optional>
 #include <map>
-#include <fstream>
-//#include <algorithm>
-#include <sstream>
+
 #include "instructions.h"
 #include "utils.h"
 
@@ -90,7 +88,6 @@ class CPU
 {
 
 private:
-    void execute(Instr *instr);
 
     bool is_idle();
 
@@ -99,7 +96,7 @@ private:
 public:
     uint64_t cycles = 0;
     int32_t ip = -1;
-    vector<Instr> *program;
+    vector<Instr> *code;
     vector<int> *isa_regs;
     vector<int> *memory;
     StoreBuffer sb;
@@ -112,7 +109,7 @@ public:
     CPU()
     {
         ip = 0;
-        program = new vector<Instr>();
+        code = new vector<Instr>();
         isa_regs = new vector<int>();
         for (int k = 0; k < REGISTER_COUNT; k++)
         {

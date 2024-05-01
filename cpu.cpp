@@ -120,8 +120,6 @@ bool CPU::is_idle()
 
 void CPU::tick()
 {
-    this_thread::sleep_for(cycle_period_ms);
-
     if (ip > -1)
     {
         bool fetchNext;
@@ -129,10 +127,10 @@ void CPU::tick()
         Slot *fetchSlot = &pipeline.slots[pipeline.index % PIPELINE_DEPTH];
 
         // Fetch
-        if (insertNopCount > 0)
+        if (bubbleSize > 0)
         {
             fetchNext = false;
-            insertNopCount--;
+            bubbleSize--;
             pipeline.slots[pipeline.index % PIPELINE_DEPTH].instr = nop;
         }
         else
@@ -146,7 +144,7 @@ void CPU::tick()
             // added to the pipeline.
             if (instr->opcode == OPCODE_JNZ)
             {
-                insertNopCount = PIPELINE_DEPTH - 1;
+                bubbleSize = PIPELINE_DEPTH - 1;
             }
 
             fetchSlot->instr = instr;
@@ -178,5 +176,66 @@ void CPU::print_memory() const
     for (int k = 0; k < memory->size(); k++)
     {
         printf("%04d %04d\n", k, memory->at(k));
+    }
+}
+
+void CPU::run()
+{
+    while (!is_idle())
+    {
+        this_thread::sleep_for(cycle_period_ms);
+        tick();
+    }
+}
+
+void CPU::setTrace(bool trace)
+{
+    this->trace = trace;
+}
+
+void CPU::setCpuFrequencyHz(uint32_t cpuFrequencyHz)
+{
+    double pause = 1.0 / cpuFrequencyHz;
+    cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
+}
+
+optional<int> StoreBuffer::lookup(int addr)
+{
+    // todo: instead of iterating over all values, there should be a directly-mapped hash-table
+    // so that we can use the last 12 bits of the address and do a lookup. Then we also need
+    // to handle the 4K aliasing problem.
+    for (uint64_t k = tail; k < head; k++)
+    {
+        StoreBufferEntry &entry = entries[k % STORE_BUFFER_CAPACITY];
+        if (entry.addr == addr)
+        {
+            return optional<int>(entry.value);
+        }
+    }
+
+    return nullopt;
+}
+
+bool StoreBuffer::is_empty()
+{
+    return head == tail;
+}
+
+void StoreBuffer::write(int addr, int value)
+{
+    StoreBufferEntry &entry = entries[tail % STORE_BUFFER_CAPACITY];
+    entry.value = value;
+    entry.addr = addr;
+    tail++;
+}
+
+void StoreBuffer::tick(vector<int> *memory)
+{
+    if (head != tail)
+    {
+        StoreBufferEntry &entry = entries[head % STORE_BUFFER_CAPACITY];
+        memory->at(entry.addr) = entry.value;
+        printf("Writing to memory [%d]=%d\n", entry.addr, entry.value);
+        head++;
     }
 }

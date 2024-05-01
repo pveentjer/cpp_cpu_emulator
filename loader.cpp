@@ -140,11 +140,12 @@ int load_program(CPU *cpu, string file)
             {
                 case OPCODE_AND:
                 {
-                    int r_src1, r_src2;
-                    if (iss >> r_src1 >> r_src2)
+                    int r_src1, r_src2, r_dst;
+                    if (iss >> r_dst >> r_src1 >> r_src2)
                     {
                         instr.code.AND.r_src1 = r_src1;
                         instr.code.AND.r_src2 = r_src2;
+                        instr.code.ADD.r_dst = r_dst;
                     }
                     else
                     {
@@ -155,11 +156,12 @@ int load_program(CPU *cpu, string file)
                 }
                 case OPCODE_OR:
                 {
-                    int r_src1, r_src2;
-                    if (iss >> r_src1 >> r_src2)
+                    int r_src1, r_src2, r_dst;
+                    if (iss >> r_dst >> r_src1 >> r_src2)
                     {
                         instr.code.OR.r_src1 = r_src1;
                         instr.code.OR.r_src2 = r_src2;
+                        instr.code.OR.r_src2 = r_dst;
                     }
                     else
                     {
@@ -170,10 +172,11 @@ int load_program(CPU *cpu, string file)
                 }
                 case OPCODE_NOT:
                 {
-                    int r_src;
-                    if (iss >> r_src)
+                    int r_src, r_dst;
+                    if (iss >> r_dst >> r_src)
                     {
                         instr.code.NOT.r_src = r_src;
+                        instr.code.NOT.r_dst = r_dst;
                     }
                     else
                     {
@@ -184,11 +187,12 @@ int load_program(CPU *cpu, string file)
                 }
                 case OPCODE_ADD:
                 {
-                    int r_src1, r_src2;
-                    if (iss >> r_src1 >> r_src2)
+                    int r_src1, r_src2, r_dst;
+                    if (iss >> r_dst >> r_src1 >> r_src2 )
                     {
                         instr.code.ADD.r_src1 = r_src1;
                         instr.code.ADD.r_src2 = r_src2;
+                        instr.code.ADD.r_dst = r_dst;
                     }
                     else
                     {
@@ -199,11 +203,12 @@ int load_program(CPU *cpu, string file)
                 }
                 case OPCODE_SUB:
                 {
-                    int r_src1, r_src2;
-                    if (iss >> r_src1 >> r_src2)
+                    int r_src1, r_src2, r_dst;
+                    if (iss >> r_dst >> r_src1 >> r_src2 )
                     {
                         instr.code.SUB.r_src1 = r_src1;
                         instr.code.SUB.r_src2 = r_src2;
+                        instr.code.SUB.r_dst = r_dst;
                     }
                     else
                     {

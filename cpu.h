@@ -11,7 +11,7 @@
 #include <optional>
 #include <map>
 #include <fstream>
-#include <algorithm>
+//#include <algorithm>
 #include <sstream>
 #include "instructions.h"
 #include "utils.h"
@@ -50,45 +50,13 @@ struct StoreBuffer
     uint64_t head = 0;
     uint64_t tail = 0;
 
-    optional<int> lookup(int addr)
-    {
-        // todo: instead of iterating over all values, there should be a directly-mapped hash-table
-        // so that we can use the last 12 bits of the address and do a lookup. Then we also need
-        // to handle the 4K aliasing problem.
-        for (uint64_t k = tail; k < head; k++)
-        {
-            StoreBufferEntry &entry = entries[k % STORE_BUFFER_CAPACITY];
-            if (entry.addr == addr)
-            {
-                return optional<int>(entry.value);
-            }
-        }
+    optional<int> lookup(int addr);
 
-        return nullopt;
-    }
+    bool is_empty();
 
-    bool is_empty()
-    {
-        return head == tail;
-    }
+    void write(int addr, int value);
 
-    void write(int addr, int value)
-    {
-        StoreBufferEntry &entry = entries[tail % STORE_BUFFER_CAPACITY];
-        entry.value = value;
-        entry.addr = addr;
-        tail++;
-    }
-
-    void tick(vector<int> *memory)
-    {
-        if (head != tail)
-        {
-            StoreBufferEntry &entry = entries[head % STORE_BUFFER_CAPACITY];
-            memory->at(entry.addr) = entry.value;
-            head++;
-        }
-    }
+    void tick(vector<int> *memory);
 };
 
 
@@ -96,6 +64,13 @@ using namespace std;
 
 class CPU
 {
+
+private:
+    void execute(Instr *instr);
+
+    bool is_idle();
+
+    void tick();
 
 public:
     uint64_t cycles = 0;
@@ -107,12 +82,11 @@ public:
     // when true, prints every instruction before being executed.
     bool trace;
     Pipeline pipeline;
-    int insertNopCount = 0;
+    int bubbleSize = 0;
     Instr *nop = new Instr();
-    bool halted = false;
     chrono::milliseconds cycle_period_ms;
 
-    CPU() : trace(trace)
+    CPU()
     {
         ip = 0;
         program = new vector<Instr>();
@@ -132,28 +106,20 @@ public:
         pipeline.slots[STAGE_FETCH].instr = nop;
         pipeline.slots[STAGE_DECODE].instr = nop;
         pipeline.slots[STAGE_EXECUTE].instr = nop;
-
         cycle_period_ms = chrono::milliseconds(static_cast<int>(1000));
     }
 
-    void setTrace(bool trace)
-    {
-        this->trace = trace;
-    }
+    /**
+     * Runs the program till completion (including writing the store buffer to memory).
+     */
+    void run();
 
-    void setCpuFrequencyHz(int cpuFrequencyHz)
-    {
-        double pause = 1.0 / cpuFrequencyHz;
-        cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
-    }
+    void setTrace(bool trace);
+
+    void setCpuFrequencyHz(uint32_t cpuFrequencyHz);
 
     void print_memory() const;
 
-    void execute(Instr *instr);
-
-    bool is_idle();
-
-    void tick();
 };
 
 #endif //CPU_EMULATOR_CPU_H

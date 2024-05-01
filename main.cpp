@@ -5,8 +5,8 @@
 int main()
 {
     CPU *cpu = new CPU();
-    cpu->trace = true;
-    cpu->cpuFrequencyHz=10;
+    cpu->setTrace(true);
+    cpu->setCpuFrequencyHz(10);
     int res = load_program(cpu, "program.txt");
     if (res != 0)
     {

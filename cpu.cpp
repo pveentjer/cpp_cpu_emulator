@@ -120,9 +120,7 @@ bool CPU::is_idle()
 
 void CPU::tick()
 {
-    double pause = 1.0 / cpuFrequencyHz;
-    chrono::milliseconds period(static_cast<int>(pause * 1000));
-    this_thread::sleep_for(period);
+    this_thread::sleep_for(cycle_period_ms);
 
     if (ip > -1)
     {
@@ -143,7 +141,9 @@ void CPU::tick()
             Instr *instr = &program->at(ip);
 
             // when a branch enters the pipeline, the pipeline will be filled with nops
-            // to prevent a control hazard.
+            // to prevent a control hazard. This will guarantee that the branch instruction
+            // has been executed, before instructions of the taken or untaken branch are
+            // added to the pipeline.
             if (instr->opcode == OPCODE_JNZ)
             {
                 insertNopCount = PIPELINE_DEPTH - 1;
@@ -153,6 +153,7 @@ void CPU::tick()
         }
 
         // Decode (ignored)
+
         // Execute
         Slot *executeSlot = &pipeline.slots[(pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
         if (trace)

@@ -106,13 +106,13 @@ public:
     StoreBuffer sb;
     // when true, prints every instruction before being executed.
     bool trace;
-    int cpuFrequencyHz = 3;
     Pipeline pipeline;
     int insertNopCount = 0;
     Instr *nop = new Instr();
     bool halted = false;
+    chrono::milliseconds cycle_period_ms;
 
-    CPU()
+    CPU() : trace(trace)
     {
         ip = 0;
         program = new vector<Instr>();
@@ -132,6 +132,19 @@ public:
         pipeline.slots[STAGE_FETCH].instr = nop;
         pipeline.slots[STAGE_DECODE].instr = nop;
         pipeline.slots[STAGE_EXECUTE].instr = nop;
+
+        cycle_period_ms = chrono::milliseconds(static_cast<int>(1000));
+    }
+
+    void setTrace(bool trace)
+    {
+        this->trace = trace;
+    }
+
+    void setCpuFrequencyHz(int cpuFrequencyHz)
+    {
+        double pause = 1.0 / cpuFrequencyHz;
+        cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
     }
 
     void print_memory() const;

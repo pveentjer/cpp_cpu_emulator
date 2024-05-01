@@ -144,65 +144,64 @@ void Backend::tick()
     execute(executeSlot->instr);
 }
 
-
 void Backend::execute(Instr *instr)
 {
     switch (instr->opcode)
     {
         case OPCODE_ADD:
         {
-            int v1 = registers->at(instr->code.ADD.r_src1);
-            int v2 = registers->at(instr->code.ADD.r_src2);
-            registers->at(instr->code.ADD.r_dst) = v1 + v2;
+            int v1 = isa_regs->at(instr->code.ADD.r_src1);
+            int v2 = isa_regs->at(instr->code.ADD.r_src2);
+            isa_regs->at(instr->code.ADD.r_dst) = v1 + v2;
             break;
         }
         case OPCODE_SUB:
         {
-            int v1 = registers->at(instr->code.SUB.r_src1);
-            int v2 = registers->at(instr->code.SUB.r_src2);
-            registers->at(instr->code.SUB.r_dst) = v1 + v2;
+            int v1 = isa_regs->at(instr->code.SUB.r_src1);
+            int v2 = isa_regs->at(instr->code.SUB.r_src2);
+            isa_regs->at(instr->code.SUB.r_dst) = v1 + v2;
             break;
         }
         case OPCODE_AND:
         {
-            int v1 = registers->at(instr->code.AND.r_src1);
-            int v2 = registers->at(instr->code.AND.r_src2);
-            registers->at(instr->code.AND.r_dst) = v1 && v2;
+            int v1 = isa_regs->at(instr->code.AND.r_src1);
+            int v2 = isa_regs->at(instr->code.AND.r_src2);
+            isa_regs->at(instr->code.AND.r_dst) = v1 && v2;
             break;
         }
         case OPCODE_OR:
         {
-            int v1 = registers->at(instr->code.OR.r_src1);
-            int v2 = registers->at(instr->code.OR.r_src2);
-            registers->at(instr->code.OR.r_dst) = v1 || v2;
+            int v1 = isa_regs->at(instr->code.OR.r_src1);
+            int v2 = isa_regs->at(instr->code.OR.r_src2);
+            isa_regs->at(instr->code.OR.r_dst) = v1 || v2;
             break;
         }
         case OPCODE_NOT:
         {
-            int v1 = registers->at(instr->code.NOT.r_src);
-            registers->at(instr->code.OR.r_dst) = !v1;
+            int v1 = isa_regs->at(instr->code.NOT.r_src);
+            isa_regs->at(instr->code.OR.r_dst) = !v1;
             break;
         }
         case OPCODE_CMP:
         {
-            int v1 = registers->at(instr->code.CMP.r_src1);
-            int v2 = registers->at(instr->code.CMP.r_src2);
-            registers->at(instr->code.CMP.r_dst) = v1 == v2;
+            int v1 = isa_regs->at(instr->code.CMP.r_src1);
+            int v2 = isa_regs->at(instr->code.CMP.r_src2);
+            isa_regs->at(instr->code.CMP.r_dst) = v1 == v2;
             break;
         }
         case OPCODE_INC:
         {
-            registers->at(instr->code.INC.r_src)++;
+            isa_regs->at(instr->code.INC.r_src)++;
             break;
         }
         case OPCODE_DEC:
         {
-            registers->at(instr->code.DEC.r_src)--;
+            isa_regs->at(instr->code.DEC.r_src)--;
             break;
         }
         case OPCODE_MOV:
         {
-            registers->at(instr->code.MOV.r_dst) = registers->at(instr->code.MOV.r_src);
+            isa_regs->at(instr->code.MOV.r_dst) = isa_regs->at(instr->code.MOV.r_src);
             break;
         }
         case OPCODE_LOAD:
@@ -214,23 +213,23 @@ void Backend::execute(Instr *instr)
             int value = sb->lookup(instr->code.LOAD.m_src)
                     .value_or(memory->at(instr->code.LOAD.m_src));
 
-            registers->at(instr->code.LOAD.r_dst) = value;
+            isa_regs->at(instr->code.LOAD.r_dst) = value;
             break;
         }
         case OPCODE_STORE:
         {
-            sb->write(instr->code.STORE.m_dst, registers->at(instr->code.STORE.r_src));
+            sb->write(instr->code.STORE.m_dst, isa_regs->at(instr->code.STORE.r_src));
             break;
         }
         case OPCODE_PRINTR:
         {
-            int v1 = registers->at(instr->code.PRINTR.r_src);
+            int v1 = isa_regs->at(instr->code.PRINTR.r_src);
             printf("                                R%d=%d\n", instr->code.PRINTR.r_src, v1);
             break;
         }
         case OPCODE_JNZ:
         {
-            int v1 = registers->at(instr->code.JNZ.r_src);
+            int v1 = isa_regs->at(instr->code.JNZ.r_src);
             if (v1 != 0)
             {
                 // the ip will be bumped at the end again, so -1 is subtracted

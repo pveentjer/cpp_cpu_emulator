@@ -75,7 +75,7 @@ struct Backend
     CPU *cpu;
     // when true, prints every instruction before being executed.
     bool trace = false;
-    vector<int> *registers;
+    vector<int> *isa_regs;
     StoreBuffer *sb;
     vector<int> *memory;
 
@@ -100,7 +100,7 @@ public:
     uint64_t cycles = 0;
     int32_t ip = -1;
     vector<Instr> *program;
-    vector<int> *registers;
+    vector<int> *isa_regs;
     vector<int> *memory;
     StoreBuffer sb;
     Pipeline pipeline;
@@ -113,10 +113,10 @@ public:
     {
         ip = 0;
         program = new vector<Instr>();
-        registers = new vector<int>();
+        isa_regs = new vector<int>();
         for (int k = 0; k < REGISTER_COUNT; k++)
         {
-            registers->push_back(0);
+            isa_regs->push_back(0);
         }
         memory = new vector<int>();
         for (int k = 0; k < MEMORY_SIZE; k++)
@@ -131,7 +131,7 @@ public:
         cycle_period_ms = chrono::milliseconds(static_cast<int>(1000));
         frontend.cpu = this;
         backend.cpu = this;
-        backend.registers = registers;
+        backend.isa_regs = isa_regs;
         backend.sb = &sb;
         backend.memory = memory;
     }

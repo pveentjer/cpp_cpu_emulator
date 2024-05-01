@@ -7,7 +7,7 @@
 #include <map>
 #include <unordered_map>
 
-// adds 2 isa_regs and writes the result in another
+// adds 2 arch_regs and writes the result in another
 static const int OPCODE_ADD = 1;
 // subtracts the second register from the first and writes the result in another
 static const int OPCODE_SUB = 2;
@@ -27,7 +27,7 @@ static const int OPCODE_PRINTR = 10;
 static const int OPCODE_HALT = 11;
 static const int OPCODE_CMP = 12;
 static const int OPCODE_JNZ = 13;
-// copy between isa_regs
+// copy between arch_regs
 static const int OPCODE_MOV = 14;
 static const int OPCODE_NOP = 15;
 

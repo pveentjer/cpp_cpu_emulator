@@ -14,11 +14,6 @@
 #include "instructions.h"
 #include "utils.h"
 
-static const int REGISTER_COUNT = 32;
-static const int MEMORY_SIZE = 16;
-static const int STORE_BUFFER_CAPACITY = 4;
-
-
 using namespace std;
 
 struct StoreBufferEntry
@@ -44,7 +39,8 @@ struct Pipeline
 
 struct StoreBuffer
 {
-    StoreBufferEntry entries[STORE_BUFFER_CAPACITY];
+    StoreBufferEntry* entries;
+    uint16_t capacity;
     uint64_t head = 0;
     uint64_t tail = 0;
 
@@ -73,7 +69,7 @@ struct Backend
     CPU *cpu;
     // when true, prints every instruction before being executed.
     bool trace = false;
-    vector<int> *isa_regs;
+    vector<int> *arch_regs;
     StoreBuffer *sb;
     vector<int> *memory;
 
@@ -83,6 +79,18 @@ struct Backend
 };
 
 using namespace std;
+
+struct CPU_Config{
+    uint32_t cpu_frequency_Hz = 1;
+    // the total available memory in 'ints' the CPU can use.
+    uint32_t memory_size = 16;
+    // the number of architectural registers
+    uint16_t arch_reg_count = 16;
+    // true if every instruction execution should be printed
+    bool trace = false;
+    // the capacity of the store buffer
+    uint16_t sb_capacity = 4;
+};
 
 class CPU
 {
@@ -97,7 +105,7 @@ public:
     uint64_t cycles = 0;
     int32_t ip = -1;
     vector<Instr> *code;
-    vector<int> *isa_regs;
+    vector<int> *arch_regs;
     vector<int> *memory;
     StoreBuffer sb;
     Pipeline pipeline;
@@ -106,17 +114,17 @@ public:
     Frontend frontend;
     Backend backend;
 
-    CPU()
+    CPU(CPU_Config config)
     {
         ip = 0;
         code = new vector<Instr>();
-        isa_regs = new vector<int>();
-        for (int k = 0; k < REGISTER_COUNT; k++)
+        arch_regs = new vector<int>();
+        for (int k = 0; k < config.arch_reg_count; k++)
         {
-            isa_regs->push_back(0);
+            arch_regs->push_back(0);
         }
         memory = new vector<int>();
-        for (int k = 0; k < MEMORY_SIZE; k++)
+        for (int k = 0; k < config.memory_size; k++)
         {
             memory->push_back(0);
         }
@@ -125,10 +133,18 @@ public:
         pipeline.slots[STAGE_FETCH].instr = nop;
         pipeline.slots[STAGE_DECODE].instr = nop;
         pipeline.slots[STAGE_EXECUTE].instr = nop;
-        cycle_period_ms = chrono::milliseconds(static_cast<int>(1000));
+
+        double pause = 1.0 / config.cpu_frequency_Hz;
+        cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
+
+        sb.entries = new StoreBufferEntry[config.sb_capacity];
+        sb.capacity = config.sb_capacity;
+
         frontend.cpu = this;
+
         backend.cpu = this;
-        backend.isa_regs = isa_regs;
+        backend.trace = config.trace;
+        backend.arch_regs = arch_regs;
         backend.sb = &sb;
         backend.memory = memory;
     }
@@ -137,10 +153,6 @@ public:
      * Runs the program till completion (including writing the store buffer to memory).
      */
     void run();
-
-    void setTrace(bool trace);
-
-    void setCpuFrequencyHz(uint32_t cpuFrequencyHz);
 
     void print_memory() const;
 

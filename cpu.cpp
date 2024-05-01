@@ -47,17 +47,6 @@ void CPU::run()
     }
 }
 
-void CPU::setTrace(bool trace)
-{
-    this->backend.trace = trace;
-}
-
-void CPU::setCpuFrequencyHz(uint32_t cpuFrequencyHz)
-{
-    double pause = 1.0 / cpuFrequencyHz;
-    cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
-}
-
 optional<int> StoreBuffer::lookup(int addr)
 {
     // todo: instead of iterating over all values, there should be a directly-mapped hash-table
@@ -65,7 +54,7 @@ optional<int> StoreBuffer::lookup(int addr)
     // to handle the 4K aliasing problem.
     for (uint64_t k = tail; k < head; k++)
     {
-        StoreBufferEntry &entry = entries[k % STORE_BUFFER_CAPACITY];
+        StoreBufferEntry &entry = entries[k % capacity];
         if (entry.addr == addr)
         {
             return optional<int>(entry.value);
@@ -82,7 +71,7 @@ bool StoreBuffer::is_empty()
 
 void StoreBuffer::write(int addr, int value)
 {
-    StoreBufferEntry &entry = entries[tail % STORE_BUFFER_CAPACITY];
+    StoreBufferEntry &entry = entries[tail % capacity];
     entry.value = value;
     entry.addr = addr;
     tail++;
@@ -92,7 +81,7 @@ void StoreBuffer::tick(vector<int> *memory)
 {
     if (head != tail)
     {
-        StoreBufferEntry &entry = entries[head % STORE_BUFFER_CAPACITY];
+        StoreBufferEntry &entry = entries[head % capacity];
         memory->at(entry.addr) = entry.value;
         printf("Writing to memory [%d]=%d\n", entry.addr, entry.value);
         head++;
@@ -150,58 +139,58 @@ void Backend::execute(Instr *instr)
     {
         case OPCODE_ADD:
         {
-            int v1 = isa_regs->at(instr->code.ADD.r_src1);
-            int v2 = isa_regs->at(instr->code.ADD.r_src2);
-            isa_regs->at(instr->code.ADD.r_dst) = v1 + v2;
+            int v1 = arch_regs->at(instr->code.ADD.r_src1);
+            int v2 = arch_regs->at(instr->code.ADD.r_src2);
+            arch_regs->at(instr->code.ADD.r_dst) = v1 + v2;
             break;
         }
         case OPCODE_SUB:
         {
-            int v1 = isa_regs->at(instr->code.SUB.r_src1);
-            int v2 = isa_regs->at(instr->code.SUB.r_src2);
-            isa_regs->at(instr->code.SUB.r_dst) = v1 + v2;
+            int v1 = arch_regs->at(instr->code.SUB.r_src1);
+            int v2 = arch_regs->at(instr->code.SUB.r_src2);
+            arch_regs->at(instr->code.SUB.r_dst) = v1 + v2;
             break;
         }
         case OPCODE_AND:
         {
-            int v1 = isa_regs->at(instr->code.AND.r_src1);
-            int v2 = isa_regs->at(instr->code.AND.r_src2);
-            isa_regs->at(instr->code.AND.r_dst) = v1 && v2;
+            int v1 = arch_regs->at(instr->code.AND.r_src1);
+            int v2 = arch_regs->at(instr->code.AND.r_src2);
+            arch_regs->at(instr->code.AND.r_dst) = v1 && v2;
             break;
         }
         case OPCODE_OR:
         {
-            int v1 = isa_regs->at(instr->code.OR.r_src1);
-            int v2 = isa_regs->at(instr->code.OR.r_src2);
-            isa_regs->at(instr->code.OR.r_dst) = v1 || v2;
+            int v1 = arch_regs->at(instr->code.OR.r_src1);
+            int v2 = arch_regs->at(instr->code.OR.r_src2);
+            arch_regs->at(instr->code.OR.r_dst) = v1 || v2;
             break;
         }
         case OPCODE_NOT:
         {
-            int v1 = isa_regs->at(instr->code.NOT.r_src);
-            isa_regs->at(instr->code.OR.r_dst) = !v1;
+            int v1 = arch_regs->at(instr->code.NOT.r_src);
+            arch_regs->at(instr->code.OR.r_dst) = !v1;
             break;
         }
         case OPCODE_CMP:
         {
-            int v1 = isa_regs->at(instr->code.CMP.r_src1);
-            int v2 = isa_regs->at(instr->code.CMP.r_src2);
-            isa_regs->at(instr->code.CMP.r_dst) = v1 == v2;
+            int v1 = arch_regs->at(instr->code.CMP.r_src1);
+            int v2 = arch_regs->at(instr->code.CMP.r_src2);
+            arch_regs->at(instr->code.CMP.r_dst) = v1 == v2;
             break;
         }
         case OPCODE_INC:
         {
-            isa_regs->at(instr->code.INC.r_src)++;
+            arch_regs->at(instr->code.INC.r_src)++;
             break;
         }
         case OPCODE_DEC:
         {
-            isa_regs->at(instr->code.DEC.r_src)--;
+            arch_regs->at(instr->code.DEC.r_src)--;
             break;
         }
         case OPCODE_MOV:
         {
-            isa_regs->at(instr->code.MOV.r_dst) = isa_regs->at(instr->code.MOV.r_src);
+            arch_regs->at(instr->code.MOV.r_dst) = arch_regs->at(instr->code.MOV.r_src);
             break;
         }
         case OPCODE_LOAD:
@@ -213,23 +202,23 @@ void Backend::execute(Instr *instr)
             int value = sb->lookup(instr->code.LOAD.m_src)
                     .value_or(memory->at(instr->code.LOAD.m_src));
 
-            isa_regs->at(instr->code.LOAD.r_dst) = value;
+            arch_regs->at(instr->code.LOAD.r_dst) = value;
             break;
         }
         case OPCODE_STORE:
         {
-            sb->write(instr->code.STORE.m_dst, isa_regs->at(instr->code.STORE.r_src));
+            sb->write(instr->code.STORE.m_dst, arch_regs->at(instr->code.STORE.r_src));
             break;
         }
         case OPCODE_PRINTR:
         {
-            int v1 = isa_regs->at(instr->code.PRINTR.r_src);
+            int v1 = arch_regs->at(instr->code.PRINTR.r_src);
             printf("                                R%d=%d\n", instr->code.PRINTR.r_src, v1);
             break;
         }
         case OPCODE_JNZ:
         {
-            int v1 = isa_regs->at(instr->code.JNZ.r_src);
+            int v1 = arch_regs->at(instr->code.JNZ.r_src);
             if (v1 != 0)
             {
                 // the ip will be bumped at the end again, so -1 is subtracted

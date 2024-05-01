@@ -3,9 +3,11 @@
 
 int main()
 {
-    CPU *cpu = new CPU();
-    cpu->setTrace(true);
-    cpu->setCpuFrequencyHz(10);
+    CPU_Config *config = new CPU_Config();
+    config->trace = true;
+    config->cpu_frequency_Hz=10;
+
+    CPU *cpu = new CPU(*config);
 
     int res = load_program(cpu, "program.asm");
     if (res != 0)

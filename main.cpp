@@ -6,14 +6,14 @@ int main()
 {
     CPU *cpu = new CPU();
     cpu->trace = true;
-
+    cpu->cpuFrequencyHz=10;
     int res = load_program(cpu, "program.txt");
     if (res != 0)
     {
         return -1;
     }
 
-    while (!cpu->tick_again())
+    while (!cpu->is_idle())
     {
         cpu->tick();
     }

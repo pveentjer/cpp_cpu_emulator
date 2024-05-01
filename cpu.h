@@ -19,7 +19,7 @@
 static const int REGISTER_COUNT = 32;
 static const int MEMORY_SIZE = 16;
 static const int STORE_BUFFER_CAPACITY = 4;
-static const int CPU_FREQUENCY_HZ = 3;
+
 
 using namespace std;
 
@@ -29,21 +29,26 @@ struct StoreBufferEntry
     int addr;
 };
 
-static const int STAGE_FETCH = 1;
-static const int STAGE_DECODE = 2;
-static const int STAGE_EXECUTE = 3;
-
+static const int STAGE_FETCH = 0;
+static const int STAGE_DECODE = 1;
+static const int STAGE_EXECUTE = 0;
+static const int PIPELINE_DEPTH = 3;
 struct Slot
 {
     Instr *instr;
-    int stage;
+};
+
+struct Pipeline
+{
+    Slot slots[PIPELINE_DEPTH];
+    uint8_t index = 0;
 };
 
 struct StoreBuffer
 {
     StoreBufferEntry entries[STORE_BUFFER_CAPACITY];
-    uint64_t head;
-    uint64_t tail;
+    uint64_t head = 0;
+    uint64_t tail = 0;
 
     optional<int> lookup(int addr)
     {
@@ -60,6 +65,11 @@ struct StoreBuffer
         }
 
         return nullopt;
+    }
+
+    bool is_empty()
+    {
+        return head == tail;
     }
 
     void write(int addr, int value)
@@ -88,14 +98,19 @@ class CPU
 {
 
 public:
+    uint64_t cycles = 0;
     int32_t ip = -1;
     vector<Instr> *program;
     vector<int> *registers;
     vector<int> *memory;
     StoreBuffer sb;
-    Slot slot;
     // when true, prints every instruction before being executed.
     bool trace;
+    int cpuFrequencyHz = 3;
+    Pipeline pipeline;
+    int insertNopCount = 0;
+    Instr *nop = new Instr();
+    bool halted = false;
 
     CPU()
     {
@@ -111,17 +126,19 @@ public:
         {
             memory->push_back(0);
         }
-        sb.head = 0;
-        sb.tail = 0;
+
         trace = false;
-        slot.stage = STAGE_FETCH;
+        nop->opcode = OPCODE_NOP;
+        pipeline.slots[STAGE_FETCH].instr = nop;
+        pipeline.slots[STAGE_DECODE].instr = nop;
+        pipeline.slots[STAGE_EXECUTE].instr = nop;
     }
 
     void print_memory() const;
 
     void execute(Instr *instr);
 
-    bool tick_again() const;
+    bool is_idle();
 
     void tick();
 };

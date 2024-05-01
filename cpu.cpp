@@ -13,7 +13,6 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.ADD.r_src1);
             int v2 = registers->at(instr->code.ADD.r_src2);
             registers->at(instr->code.ADD.r_dst) = v1 + v2;
-            ip++;
             break;
         }
         case OPCODE_SUB:
@@ -21,7 +20,6 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.SUB.r_src1);
             int v2 = registers->at(instr->code.SUB.r_src2);
             registers->at(instr->code.SUB.r_dst) = v1 + v2;
-            ip++;
             break;
         }
         case OPCODE_AND:
@@ -29,7 +27,6 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.AND.r_src1);
             int v2 = registers->at(instr->code.AND.r_src2);
             registers->at(instr->code.AND.r_dst) = v1 && v2;
-            ip++;
             break;
         }
         case OPCODE_OR:
@@ -37,14 +34,12 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.OR.r_src1);
             int v2 = registers->at(instr->code.OR.r_src2);
             registers->at(instr->code.OR.r_dst) = v1 || v2;
-            ip++;
             break;
         }
         case OPCODE_NOT:
         {
             int v1 = registers->at(instr->code.NOT.r_src);
             registers->at(instr->code.OR.r_dst) = !v1;
-            ip++;
             break;
         }
         case OPCODE_CMP:
@@ -52,25 +47,21 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.CMP.r_src1);
             int v2 = registers->at(instr->code.CMP.r_src2);
             registers->at(instr->code.CMP.r_dst) = v1 == v2;
-            ip++;
             break;
         }
         case OPCODE_INC:
         {
             registers->at(instr->code.INC.r_src)++;
-            ip++;
             break;
         }
         case OPCODE_DEC:
         {
             registers->at(instr->code.DEC.r_src)--;
-            ip++;
             break;
         }
         case OPCODE_MOV:
         {
             registers->at(instr->code.MOV.r_dst) = registers->at(instr->code.MOV.r_src);
-            ip++;
             break;
         }
         case OPCODE_LOAD:
@@ -83,20 +74,17 @@ void CPU::execute(Instr *instr)
                     .value_or(memory->at(instr->code.LOAD.m_src));
 
             registers->at(instr->code.LOAD.r_dst) = value;
-            ip++;
             break;
         }
         case OPCODE_STORE:
         {
             sb.write(instr->code.STORE.m_dst, registers->at(instr->code.STORE.r_src));
-            ip++;
             break;
         }
         case OPCODE_PRINTR:
         {
             int v1 = registers->at(instr->code.PRINTR.r_src);
-            printf("R%d=%d\n", instr->code.PRINTR.r_src, v1);
-            ip++;
+            printf("                                R%d=%d\n", instr->code.PRINTR.r_src, v1);
             break;
         }
         case OPCODE_JNZ:
@@ -104,17 +92,20 @@ void CPU::execute(Instr *instr)
             int v1 = registers->at(instr->code.JNZ.r_src);
             if (v1 != 0)
             {
-                ip = instr->code.JNZ.p_target;
-            }
-            else
-            {
-                ip++;
+                // the ip will be bumped at the end again, so -1 is subtracted
+                ip = instr->code.JNZ.p_target - 1;
             }
             break;
         }
         case OPCODE_HALT:
         {
-            ip = -1;
+            // at the end of the cycle, the ip is bumped again and it will
+            // end up as -1, and no further instructions will be processed.
+            ip = -2;
+            break;
+        }
+        case OPCODE_NOP:
+        {
             break;
         }
         default:
@@ -122,49 +113,62 @@ void CPU::execute(Instr *instr)
     }
 }
 
-bool CPU::tick_again() const
+bool CPU::is_idle()
 {
-
-    if (ip > -1)
-    {
-        return false;
-    }
-    return sb.head != sb.tail;
+    return ip == -1 && sb.is_empty();
 }
 
 void CPU::tick()
 {
-    double pause = 1.0 / CPU_FREQUENCY_HZ;
+    double pause = 1.0 / cpuFrequencyHz;
     chrono::milliseconds period(static_cast<int>(pause * 1000));
     this_thread::sleep_for(period);
 
     if (ip > -1)
     {
-        switch (slot.stage)
+        bool fetchNext;
+
+        Slot *fetchSlot = &pipeline.slots[pipeline.index % PIPELINE_DEPTH];
+
+        // Fetch
+        if (insertNopCount > 0)
         {
-            case STAGE_FETCH:
-                slot.instr = &program->at(ip);
-                slot.stage = STAGE_DECODE;
-                break;
-            case STAGE_DECODE:
-                // just an empty stage for now.
-                slot.stage = STAGE_EXECUTE;
-                break;
-            case STAGE_EXECUTE:
-                if (trace)
-                {
-                    print_instr(slot.instr);
-                }
-                execute(slot.instr);
-                slot.instr = nullptr;
-                slot.stage = STAGE_FETCH;
-                break;
-            default:
-                throw std::runtime_error("Unknown stage");
+            fetchNext = false;
+            insertNopCount--;
+            pipeline.slots[pipeline.index % PIPELINE_DEPTH].instr = nop;
+        }
+        else
+        {
+            fetchNext = true;
+            Instr *instr = &program->at(ip);
+
+            // when a branch enters the pipeline, the pipeline will be filled with nops
+            // to prevent a control hazard.
+            if (instr->opcode == OPCODE_JNZ)
+            {
+                insertNopCount = PIPELINE_DEPTH - 1;
+            }
+
+            fetchSlot->instr = instr;
+        }
+
+        // Decode (ignored)
+        // Execute
+        Slot *executeSlot = &pipeline.slots[(pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
+        if (trace)
+        {
+            print_instr(executeSlot->instr);
+        }
+        execute(executeSlot->instr);
+
+        if (fetchNext)
+        {
+            ip++;
         }
     }
 
     sb.tick(memory);
+    cycles++;
 }
 
 void CPU::print_memory() const

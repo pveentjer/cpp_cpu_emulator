@@ -51,6 +51,9 @@ void print_instr(Instr *instr)
         case OPCODE_HALT:
             printf("HALT\n");
             break;
+        case OPCODE_NOP:
+            printf("NOP\n");
+            break;
         default:
             throw std::runtime_error("Unrecognized opcode");
     }

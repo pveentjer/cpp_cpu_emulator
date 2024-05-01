@@ -29,6 +29,7 @@ static const int OPCODE_CMP = 12;
 static const int OPCODE_JNZ = 13;
 // copy between registers
 static const int OPCODE_MOV = 14;
+static const int OPCODE_NOP = 15;
 
 
 static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
@@ -45,7 +46,8 @@ static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
         {"INC",    OPCODE_INC},
         {"DEC",    OPCODE_DEC},
         {"JNZ",    OPCODE_JNZ},
-        {"HALT",   OPCODE_HALT}
+        {"HALT",   OPCODE_HALT},
+        {"NOP", OPCODE_NOP}
 };
 
 struct Instr {

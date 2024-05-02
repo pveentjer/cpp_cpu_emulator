@@ -7,13 +7,15 @@
 #include <map>
 #include <unordered_map>
 
-enum Opcode {
+enum Opcode
+{
     OPCODE_ADD,
     OPCODE_SUB,
     OPCODE_INC,
     OPCODE_DEC,
     OPCODE_AND,
     OPCODE_OR,
+    OPCODE_XOR,
     OPCODE_NOT,
     OPCODE_LOAD,
     OPCODE_STORE,
@@ -33,6 +35,7 @@ static const std::unordered_map<std::string, Opcode> MNEMONIC_TO_OPCODE = {
         {"SUB",    OPCODE_SUB},
         {"AND",    OPCODE_AND},
         {"OR",     OPCODE_OR},
+        {"XOR",    OPCODE_XOR},
         {"NOT",    OPCODE_NOT},
         {"CMP",    OPCODE_CMP},
         {"MOV",    OPCODE_MOV},
@@ -70,6 +73,10 @@ struct Instr
         {
             uint32_t r_src1, r_src2, r_dst;
         } OR;
+        struct
+        {
+            uint32_t r_src1, r_src2, r_dst;
+        } XOR;
         struct
         {
             uint32_t r_src, r_dst;

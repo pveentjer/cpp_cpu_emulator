@@ -169,6 +169,22 @@ void load_program(CPU *cpu, string file)
                     }
                     break;
                 }
+                case OPCODE_XOR:
+                {
+                    int r_src1, r_src2, r_dst;
+                    if (iss >> r_dst >> r_src1 >> r_src2)
+                    {
+                        instr.code.XOR.r_src1 = r_src1;
+                        instr.code.XOR.r_src2 = r_src2;
+                        instr.code.XOR.r_src2 = r_dst;
+                    }
+                    else
+                    {
+                        cerr << "Invalid XOR instruction format at line_nr " << line_nr << "." << endl;
+                        throw std::runtime_error("Invalid OR");
+                    }
+                    break;
+                }
                 case OPCODE_NOT:
                 {
                     int r_src, r_dst;

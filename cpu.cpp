@@ -184,6 +184,13 @@ void Backend::execute(Instr *instr)
             arch_regs->at(instr->code.OR.r_dst) = v1 || v2;
             break;
         }
+        case OPCODE_XOR:
+        {
+            int v1 = arch_regs->at(instr->code.XOR.r_src1);
+            int v2 = arch_regs->at(instr->code.XOR.r_src2);
+            arch_regs->at(instr->code.XOR.r_dst) = v1 ^ v2;
+            break;
+        }
         case OPCODE_NOT:
         {
             int v1 = arch_regs->at(instr->code.NOT.r_src);

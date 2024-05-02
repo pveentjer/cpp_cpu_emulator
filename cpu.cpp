@@ -3,7 +3,7 @@
 //
 
 #include "cpu.h"
-
+#include <algorithm>
 
 bool CPU::is_idle()
 {
@@ -95,34 +95,24 @@ void Frontend::cycle()
         return;
     }
 
-    bool fetchNext;
-    Instr *instr;
-    // Fetch
-    if (bubble_size > 0)
+    if (bubble_remain > 0)
     {
-        fetchNext = false;
-        bubble_size--;
-        instr = nop;
+        bubble_remain--;
+        instr_queue->enqueue(nop);
     }
     else
     {
-        fetchNext = true;
-        instr = &cpu->code->at(ip_next_fetch);
+        Instr *instr = &cpu->code->at(ip_next_fetch);
 
         // when a branch enters the pipeline, the pipeline will be filled with nops
         // to prevent a control hazard. This will guarantee that the branch instruction
         // has been executed, before instructions of the taken or untaken branch are
         // added to the pipeline.
-        if (instr->opcode == OPCODE_JNZ)
+        if (is_branch(instr->opcode))
         {
-            bubble_size = PIPELINE_DEPTH - 1;
+            bubble_remain = PIPELINE_DEPTH - 1;
         }
-    }
-
-    instr_queue->enqueue(instr);
-
-    if (fetchNext)
-    {
+        instr_queue->enqueue(instr);
         ip_next_fetch++;
     }
 }
@@ -134,25 +124,6 @@ bool Frontend::is_idle()
 
 void Backend::cycle()
 {
-    if (is_idle())
-    {
-        return;
-    }
-
-    if (instr_queue->is_empty())
-    {
-        return;
-    }
-
-    if (!rob.is_full())
-    {
-        // todo: we should drain as much as possible.
-        Instr *instr = instr_queue->dequeue();
-        Slot *slot = &rob.slots[rob.tail % rob.capacity];
-        slot->instr = instr;
-        rob.tail++;
-    }
-
     if (!rob.is_empty())
     {
         Slot *slot = &rob.slots[rob.head % rob.capacity];
@@ -163,14 +134,21 @@ void Backend::cycle()
         execute(slot->instr);
         rob.head++;
     }
+
+    int cnt = std::min(rob.empty_slots(), instr_queue->size());
+    for (int k = 0; k < cnt; k++)
+    {
+        Instr *instr = instr_queue->dequeue();
+        Slot *slot = &rob.slots[rob.tail % rob.capacity];
+        slot->instr = instr;
+        slot->state = SLOT_NEW;
+        rob.tail++;
+    }
 }
 
 bool Backend::is_idle()
 {
-    //todo: fix
-    //return true;
-
-    return false;
+    return rob.size() == 0;
 }
 
 void Backend::execute(Instr *instr)

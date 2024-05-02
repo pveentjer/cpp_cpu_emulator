@@ -58,3 +58,14 @@ void print_instr(Instr *instr)
             throw std::runtime_error("Unrecognized opcode");
     }
 }
+
+bool is_branch(int opcode)
+{
+    switch (opcode)
+    {
+        case OPCODE_JNZ:
+            return true;
+        default:
+            return false;
+    }
+}

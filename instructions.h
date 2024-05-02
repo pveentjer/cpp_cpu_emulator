@@ -29,8 +29,11 @@ static const int OPCODE_CMP = 12;
 static const int OPCODE_JNZ = 13;
 // copy between arch_regs
 static const int OPCODE_MOV = 14;
+// instruction that does nothing
 static const int OPCODE_NOP = 15;
 
+
+bool is_branch(int opcode);
 
 static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
         {"ADD",    OPCODE_ADD},
@@ -47,54 +50,70 @@ static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
         {"DEC",    OPCODE_DEC},
         {"JNZ",    OPCODE_JNZ},
         {"HALT",   OPCODE_HALT},
-        {"NOP", OPCODE_NOP}
+        {"NOP",    OPCODE_NOP}
 };
 
-struct Instr {
+struct Instr
+{
     int opcode;
     // r_ prefix means it is a register
     // m_ prefix means it is from memory
     // p_ prefix means it is an address in the program
-    union {
-        struct {
+    union
+    {
+        struct
+        {
             uint32_t r_src1, r_src2, r_dst;
         } ADD;
-        struct {
+        struct
+        {
             uint32_t r_src1, r_src2, r_dst;
         } SUB;
-        struct {
+        struct
+        {
             uint32_t r_src1, r_src2, r_dst;
         } AND;
-        struct {
+        struct
+        {
             uint32_t r_src1, r_src2, r_dst;
         } OR;
-        struct {
+        struct
+        {
             uint32_t r_src, r_dst;
         } NOT;
-        struct {
+        struct
+        {
             uint32_t m_src, r_dst;
         } LOAD;
-        struct {
+        struct
+        {
             uint32_t r_src, m_dst;
         } STORE;
-        struct {
+        struct
+        {
             uint32_t r_src, r_dst;
         } MOV;
-        struct {
+        struct
+        {
             uint32_t r_src;
         } PRINTR;
-        struct {
+        struct
+        {
             uint32_t r_src;
         } INC;
-        struct {
+        struct
+        {
             uint32_t r_src;
         } DEC;
-        struct {
+        struct
+        {
         } HALT;
-        struct {
+        struct
+        {
             uint32_t r_src1, r_src2, r_dst;
         } CMP;
-        struct {
+        struct
+        {
             uint32_t r_src, p_target;
         } JNZ;
     } code;

@@ -18,7 +18,7 @@ using namespace std;
 
 
 // currently just 2 stages; fetch + decode
-static const int PIPELINE_DEPTH = 2;
+static const int PIPELINE_DEPTH = 10;
 
 struct StoreBufferEntry
 {
@@ -82,9 +82,14 @@ struct InstrQueue
     }
 };
 
+static const int SLOT_NEW = 0;
+static const int SLOT_EXECUTED = 0;
+
 struct Slot
 {
     Instr *instr;
+    int result;
+    int state;
 };
 
 struct ROB
@@ -93,12 +98,17 @@ struct ROB
     uint16_t capacity;
     Slot *slots;
 
+    uint16_t empty_slots()
+    {
+        return capacity - size();
+    }
+
     bool is_empty()
     {
         return head == tail;
     }
 
-    int size()
+    uint16_t size()
     {
         return tail - head;
     }
@@ -118,7 +128,7 @@ class CPU;
 struct Frontend
 {
     CPU *cpu;
-    int bubble_size;
+    int bubble_remain;
     int32_t ip_next_fetch = -1;
     Instr *nop;
     InstrQueue *instr_queue;
@@ -219,11 +229,11 @@ public:
         instr_queue.entries = new Instr *[config.instr_queue_capacity];
 
         frontend.ip_next_fetch = -1;
-        frontend.bubble_size = 0;
+        frontend.bubble_remain = 0;
         frontend.nop = new Instr();
         frontend.nop->opcode = OPCODE_NOP;
         frontend.cpu = this;
-        frontend.bubble_size = 0;
+        frontend.bubble_remain = 0;
         frontend.instr_queue = &instr_queue;
 
         backend.cpu = this;
@@ -232,7 +242,7 @@ public:
         backend.sb = &sb;
         backend.memory = memory;
         backend.instr_queue = &instr_queue;
-        backend.rob.head =0;
+        backend.rob.head = 0;
         backend.rob.tail = 0;
         backend.rob.capacity = config.rob_capacity;
         backend.rob.slots = new Slot[config.rob_capacity];

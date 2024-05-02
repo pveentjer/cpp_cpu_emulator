@@ -8,8 +8,8 @@
 bool CPU::is_idle()
 {
     return frontend.is_idle()
-           //&& backend.is_idle()
-           && sb.is_idle();
+           //&& backend.is_empty()
+           && sb.is_empty();
 }
 
 void CPU::cycle()
@@ -59,7 +59,7 @@ optional<int> StoreBuffer::lookup(int addr)
     return nullopt;
 }
 
-bool StoreBuffer::is_idle()
+bool StoreBuffer::is_empty()
 {
     return head == tail;
 }

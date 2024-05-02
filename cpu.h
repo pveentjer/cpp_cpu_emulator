@@ -37,7 +37,7 @@ struct StoreBuffer
 
     optional<int> lookup(int addr);
 
-    bool is_idle();
+    bool is_empty();
 
     void write(int addr, int value);
 

@@ -139,7 +139,8 @@ struct Frontend
 
 };
 
-struct ExecutionUnit{
+struct ExecutionUnit
+{
     ROB_Slot *slot;
     StoreBuffer *sb;
     CPU *cpu;
@@ -148,6 +149,15 @@ struct ExecutionUnit{
 
     void tick();
 };
+
+
+struct ReservationStation
+{
+    int required_operands;
+    int ready_operands;
+    ROB_Slot *robSlot;
+};
+
 /**
  * The Backend is responsible for the actual execution of the instruction.
  *
@@ -155,6 +165,9 @@ struct ExecutionUnit{
  */
 struct Backend
 {
+    ReservationStation *rs_array;
+    uint16_t *rs_free_array;
+
     CPU *cpu;
     // when true, prints every instruction before being executed.
     bool trace;
@@ -164,10 +177,12 @@ struct Backend
     InstrQueue *instr_queue;
     ROB rob;
     ExecutionUnit eu;
+    uint8_t rs_free_count;
 
     void cycle();
 
     bool is_idle();
+
 };
 
 using namespace std;
@@ -187,8 +202,9 @@ struct CPU_Config
     uint8_t instr_queue_capacity = 16;
 
     uint8_t rob_capacity = 16;
-};
 
+    uint8_t rs_count = 1;
+};
 
 
 class CPU
@@ -225,7 +241,6 @@ public:
             memory->push_back(0);
         }
 
-
         double pause = 1.0 / config.cpu_frequency_Hz;
         cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
 
@@ -261,6 +276,14 @@ public:
         backend.eu.cpu = this;
         backend.eu.arch_regs = arch_regs;
         backend.eu.memory = memory;
+
+        backend.rs_array = new ReservationStation[config.rs_count];
+        backend.rs_free_count = config.rs_count;
+        backend.rs_free_array = new uint16_t[config.rs_count];
+        for (uint16_t k = 0; k < config.rs_count; k++)
+        {
+            backend.rs_free_array[k] = k;
+        }
     }
 
     /**

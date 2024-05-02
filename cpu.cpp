@@ -8,8 +8,8 @@
 bool CPU::is_idle()
 {
     return frontend.is_idle()
-        //&& backend.is_idle()
-        && sb.is_idle();
+           //&& backend.is_idle()
+           && sb.is_idle();
 }
 
 void CPU::cycle()
@@ -89,20 +89,24 @@ void Frontend::cycle()
         return;
     }
 
-    bool fetchNext;
-    Slot *fetchSlot = &cpu->pipeline.slots[cpu->pipeline.index % PIPELINE_DEPTH];
+    if (instr_queue->is_full())
+    {
+        return;
+    }
 
+    bool fetchNext;
+    Instr *instr;
     // Fetch
     if (bubble_size > 0)
     {
         fetchNext = false;
         bubble_size--;
-        cpu->pipeline.slots[cpu->pipeline.index % PIPELINE_DEPTH].instr = cpu->nop;
+        instr = nop;
     }
     else
     {
         fetchNext = true;
-        Instr *instr = &cpu->code->at(ip_next_fetch);
+        instr = &cpu->code->at(ip_next_fetch);
 
         // when a branch enters the pipeline, the pipeline will be filled with nops
         // to prevent a control hazard. This will guarantee that the branch instruction
@@ -112,11 +116,11 @@ void Frontend::cycle()
         {
             bubble_size = PIPELINE_DEPTH - 1;
         }
-
-        fetchSlot->instr = instr;
     }
 
-    if(fetchNext)
+    instr_queue->enqueue(instr);
+
+    if (fetchNext)
     {
         ip_next_fetch++;
     }
@@ -129,20 +133,23 @@ bool Frontend::is_idle()
 
 void Backend::cycle()
 {
-    if(is_idle()){
+    if (is_idle())
+    {
         return;
     }
 
-    // Execute
-    Slot *execute_slot = &cpu->pipeline.slots[(cpu->pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
+    if (instr_queue->is_empty())
+    {
+        return;
+    }
+
+    Instr *instr = instr_queue->dequeue();
     if (trace)
     {
-        print_instr(execute_slot->instr);
+        print_instr(instr);
     }
-    execute(execute_slot->instr);
+    execute(instr);
 }
-
-
 
 bool Backend::is_idle()
 {

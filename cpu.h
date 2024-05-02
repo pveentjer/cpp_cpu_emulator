@@ -16,25 +16,19 @@
 
 using namespace std;
 
-struct StoreBufferEntry {
+
+
+// currently just 2 stages; fetch + decode
+static const int PIPELINE_DEPTH = 2;
+
+struct StoreBufferEntry
+{
     int value;
     int addr;
 };
 
-static const int STAGE_FETCH = 0;
-static const int STAGE_DECODE = 1;
-static const int STAGE_EXECUTE = 0;
-static const int PIPELINE_DEPTH = 3;
-struct Slot {
-    Instr *instr;
-};
-
-struct Pipeline {
-    Slot slots[PIPELINE_DEPTH];
-    uint8_t index = 0;
-};
-
-struct StoreBuffer {
+struct StoreBuffer
+{
     StoreBufferEntry *entries;
     uint16_t capacity;
     uint64_t head = 0;
@@ -53,11 +47,40 @@ struct StoreBuffer {
 /**
  * The InstrQueue sits between frontend and backend.
  */
-struct InstrQueue {
+struct InstrQueue
+{
     Instr **entries;
     uint16_t capacity;
     uint64_t head = 0;
     uint64_t tail = 0;
+
+    bool is_empty() const
+    {
+        return head == tail;
+    }
+
+    uint16_t size() const
+    {
+        return tail - head;
+    }
+
+    bool is_full() const
+    {
+        return size() == capacity;
+    }
+
+    Instr *dequeue()
+    {
+        Instr *instr = entries[head % capacity];
+        head++;
+        return instr;
+    }
+
+    void enqueue(Instr *instr)
+    {
+        entries[tail % capacity] = instr;
+        tail++;
+    }
 };
 
 class CPU;
@@ -66,14 +89,18 @@ class CPU;
  * The Frontend is responsible for fetching and decoding instruction
  * and then will place them on the InstrQueue for the backend.
  */
-struct Frontend {
+struct Frontend
+{
     CPU *cpu;
     int bubble_size;
     int32_t ip_next_fetch = -1;
+    Instr *nop;
+    InstrQueue *instr_queue;
 
     void cycle();
 
     bool is_idle();
+
 };
 
 /**
@@ -81,13 +108,15 @@ struct Frontend {
  *
  * It will take instructions from the InstrQueue.
  */
-struct Backend {
+struct Backend
+{
     CPU *cpu;
     // when true, prints every instruction before being executed.
     bool trace;
     vector<int> *arch_regs;
     StoreBuffer *sb;
     vector<int> *memory;
+    InstrQueue *instr_queue;
 
     void execute(Instr *instr);
 
@@ -98,7 +127,8 @@ struct Backend {
 
 using namespace std;
 
-struct CPU_Config {
+struct CPU_Config
+{
     uint32_t cpu_frequency_Hz = 1;
     // the total available memory in 'ints' the CPU can use.
     uint32_t memory_size = 16;
@@ -112,7 +142,8 @@ struct CPU_Config {
     uint8_t instr_queue_capacity = 16;
 };
 
-class CPU {
+class CPU
+{
 
 private:
 
@@ -127,27 +158,24 @@ public:
     vector<int> *memory;
     InstrQueue instr_queue;
     StoreBuffer sb;
-    Pipeline pipeline;
-    Instr *nop = new Instr();
     chrono::milliseconds cycle_period_ms;
     Frontend frontend;
     Backend backend;
 
-    CPU(CPU_Config config) {
+    CPU(CPU_Config config)
+    {
         code = new vector<Instr>();
         arch_regs = new vector<int>();
-        for (int k = 0; k < config.arch_reg_count; k++) {
+        for (int k = 0; k < config.arch_reg_count; k++)
+        {
             arch_regs->push_back(0);
         }
         memory = new vector<int>();
-        for (int k = 0; k < config.memory_size; k++) {
+        for (int k = 0; k < config.memory_size; k++)
+        {
             memory->push_back(0);
         }
 
-        nop->opcode = OPCODE_NOP;
-        pipeline.slots[STAGE_FETCH].instr = nop;
-        pipeline.slots[STAGE_DECODE].instr = nop;
-        pipeline.slots[STAGE_EXECUTE].instr = nop;
 
         double pause = 1.0 / config.cpu_frequency_Hz;
         cycle_period_ms = chrono::milliseconds(static_cast<int>(pause * 1000));
@@ -159,16 +187,22 @@ public:
         instr_queue.capacity = config.instr_queue_capacity;
         instr_queue.head = 0;
         instr_queue.tail = 0;
-        instr_queue.entries = new Instr*[config.instr_queue_capacity];
+        instr_queue.entries = new Instr *[config.instr_queue_capacity];
 
+        frontend.ip_next_fetch = -1;
+        frontend.bubble_size = 0;
+        frontend.nop = new Instr();
+        frontend.nop->opcode = OPCODE_NOP;
         frontend.cpu = this;
         frontend.bubble_size = 0;
+        frontend.instr_queue = &instr_queue;
 
         backend.cpu = this;
         backend.trace = config.trace;
         backend.arch_regs = arch_regs;
         backend.sb = &sb;
         backend.memory = memory;
+        backend.instr_queue = &instr_queue;
     }
 
     /**

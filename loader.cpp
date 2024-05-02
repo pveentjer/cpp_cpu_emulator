@@ -36,12 +36,11 @@ bool isValidVariable(const string &s)
 
 void load_program(CPU *cpu, string file)
 {
-    // Open the file containing the program instructions
     ifstream infile(file);
     if (!infile.is_open())
     {
         cerr << "Failed to open program file." << endl;
-        throw std::runtime_error("Could not open program file.");
+        throw std::runtime_error("Failed to open program file.");
     }
 
     unordered_map<string, int> labels = unordered_map<string, int>();
@@ -150,7 +149,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid AND instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid AND");
                     }
                     break;
                 }
@@ -166,7 +165,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid OR instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid OR");
                     }
                     break;
                 }
@@ -181,7 +180,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid NOT instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid NOT");
                     }
                     break;
                 }
@@ -197,7 +196,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid ADD instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid ADD");
                     }
                     break;
                 }
@@ -213,7 +212,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid SUB instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid SUB");
                     }
                     break;
                 }
@@ -227,7 +226,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid DEC instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid DEC");
                     }
                     break;
                 }
@@ -241,7 +240,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid INC instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid INC");
                     }
                     break;
                 }
@@ -264,7 +263,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid LOAD instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid LOAD");
                     }
                     break;
                 }
@@ -278,7 +277,7 @@ void load_program(CPU *cpu, string file)
                         if (!variable.has_value())
                         {
                             cerr << "Variable [" << name << "] not found at line " << line_nr << "." << endl;
-                            throw std::runtime_error("Invalid program");
+                            throw std::runtime_error("Invalid STORE");
                         }
 
                         instr.code.STORE.r_src = r_src;
@@ -287,7 +286,7 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid STORE instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid STORE");
                     }
                     break;
                 }
@@ -307,13 +306,13 @@ void load_program(CPU *cpu, string file)
                         {
                             cerr << "Unknown target [" << label << "] at line_nr " << line_nr << "."
                                  << endl;
-                            throw std::runtime_error("Invalid program");
+                            throw std::runtime_error("Invalid JNZ");
                         }
                     }
                     else
                     {
                         cerr << "Invalid JNZ instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid JNZ");
                     }
                     break;
                 }
@@ -327,10 +326,17 @@ void load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid PRINTR instruction format at line_nr " << line_nr << "." << endl;
-                        throw std::runtime_error("Invalid program");
+                        throw std::runtime_error("Invalid PRINTR");
                     }
                     break;
                 }
+                case OPCODE_HALT:
+                    break;
+                case OPCODE_NOP:
+                    break;
+
+                    // todo: not all opcodes are handled.
+
             }
 
             cpu->code->push_back(instr);

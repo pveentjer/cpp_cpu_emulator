@@ -85,7 +85,7 @@ struct InstrQueue
 static const int SLOT_NEW = 0;
 static const int SLOT_EXECUTED = 0;
 
-struct Slot
+struct ROB_Slot
 {
     Instr *instr;
     int result;
@@ -96,7 +96,7 @@ struct ROB
 {
     uint64_t head, tail;
     uint16_t capacity;
-    Slot *slots;
+    ROB_Slot *slots;
 
     uint16_t empty_slots()
     {
@@ -245,7 +245,7 @@ public:
         backend.rob.head = 0;
         backend.rob.tail = 0;
         backend.rob.capacity = config.rob_capacity;
-        backend.rob.slots = new Slot[config.rob_capacity];
+        backend.rob.slots = new ROB_Slot[config.rob_capacity];
     }
 
     /**

@@ -24,7 +24,6 @@ void CPU::cycle()
     cycles++;
 }
 
-
 void CPU::run()
 {
     while (!is_idle())
@@ -124,9 +123,10 @@ bool Frontend::is_idle()
 
 void Backend::cycle()
 {
+    // execute 1 instruction for the time (in order)
     if (!rob.is_empty())
     {
-        Slot *slot = &rob.slots[rob.head % rob.capacity];
+        ROB_Slot *slot = &rob.slots[rob.head % rob.capacity];
         if (trace)
         {
             print_instr(slot->instr);
@@ -135,11 +135,12 @@ void Backend::cycle()
         rob.head++;
     }
 
+    // place instructions from the instruction queue into the rob.
     int cnt = std::min(rob.empty_slots(), instr_queue->size());
     for (int k = 0; k < cnt; k++)
     {
         Instr *instr = instr_queue->dequeue();
-        Slot *slot = &rob.slots[rob.tail % rob.capacity];
+        ROB_Slot *slot = &rob.slots[rob.tail % rob.capacity];
         slot->instr = instr;
         slot->state = SLOT_NEW;
         rob.tail++;

@@ -8,6 +8,7 @@
 bool CPU::is_idle()
 {
     return frontend.is_idle()
+           && instr_queue.is_empty()
            //&& backend.is_empty()
            && sb.is_empty();
 }
@@ -24,21 +25,21 @@ void CPU::cycle()
 }
 
 
-void CPU::print_memory() const
-{
-    printf("------------------Memory----------------\n");
-    for (int k = 0; k < memory->size(); k++)
-    {
-        printf("%04d %04d\n", k, memory->at(k));
-    }
-}
-
 void CPU::run()
 {
     while (!is_idle())
     {
         this_thread::sleep_for(cycle_period_ms);
         cycle();
+    }
+}
+
+void CPU::print_memory() const
+{
+    printf("------------------Memory----------------\n");
+    for (int k = 0; k < memory->size(); k++)
+    {
+        printf("%04d %04d\n", k, memory->at(k));
     }
 }
 
@@ -84,7 +85,7 @@ void StoreBuffer::cycle()
 
 void Frontend::cycle()
 {
-    if (is_idle())
+    if (ip_next_fetch == -1)
     {
         return;
     }

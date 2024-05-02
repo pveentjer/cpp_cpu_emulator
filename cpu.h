@@ -17,7 +17,6 @@
 using namespace std;
 
 
-
 // currently just 2 stages; fetch + decode
 static const int PIPELINE_DEPTH = 2;
 
@@ -83,6 +82,33 @@ struct InstrQueue
     }
 };
 
+struct Slot
+{
+    Instr *instr;
+};
+
+struct ROB
+{
+    uint64_t head, tail;
+    uint16_t capacity;
+    Slot *slots;
+
+    bool is_empty()
+    {
+        return head == tail;
+    }
+
+    int size()
+    {
+        return tail - head;
+    }
+
+    bool is_full()
+    {
+        return size() == capacity;
+    }
+};
+
 class CPU;
 
 /**
@@ -117,6 +143,7 @@ struct Backend
     StoreBuffer *sb;
     vector<int> *memory;
     InstrQueue *instr_queue;
+    ROB rob;
 
     void execute(Instr *instr);
 
@@ -140,6 +167,8 @@ struct CPU_Config
     uint16_t sb_capacity = 4;
     // the capacity of the instruction queue between frontend and backend
     uint8_t instr_queue_capacity = 16;
+
+    uint8_t rob_capacity = 16;
 };
 
 class CPU
@@ -203,6 +232,10 @@ public:
         backend.sb = &sb;
         backend.memory = memory;
         backend.instr_queue = &instr_queue;
+        backend.rob.head =0;
+        backend.rob.tail = 0;
+        backend.rob.capacity = config.rob_capacity;
+        backend.rob.slots = new Slot[config.rob_capacity];
     }
 
     /**

@@ -144,12 +144,25 @@ void Backend::cycle()
         return;
     }
 
-    Instr *instr = instr_queue->dequeue();
-    if (trace)
+    if (!rob.is_full())
     {
-        print_instr(instr);
+        // todo: we should drain as much as possible.
+        Instr *instr = instr_queue->dequeue();
+        Slot *slot = &rob.slots[rob.tail % rob.capacity];
+        slot->instr = instr;
+        rob.tail++;
     }
-    execute(instr);
+
+    if (!rob.is_empty())
+    {
+        Slot *slot = &rob.slots[rob.head % rob.capacity];
+        if (trace)
+        {
+            print_instr(slot->instr);
+        }
+        execute(slot->instr);
+        rob.head++;
+    }
 }
 
 bool Backend::is_idle()

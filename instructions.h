@@ -7,30 +7,23 @@
 #include <map>
 #include <unordered_map>
 
-// adds 2 arch_regs and writes the result in another
-static const int OPCODE_ADD = 1;
-// subtracts the second register from the first and writes the result in another
-static const int OPCODE_SUB = 2;
-// increments the value in a register
-static const int OPCODE_INC = 3;
-// decrements the value in a register
-static const int OPCODE_DEC = 4;
-
-static const int OPCODE_AND = 5;
-static const int OPCODE_OR = 6;
-static const int OPCODE_NOT = 7;
-
-static const int OPCODE_LOAD = 8;
-static const int OPCODE_STORE = 9;
-// prints a value from a register
-static const int OPCODE_PRINTR = 10;
-static const int OPCODE_HALT = 11;
-static const int OPCODE_CMP = 12;
-static const int OPCODE_JNZ = 13;
-// copy between arch_regs
-static const int OPCODE_MOV = 14;
-// instruction that does nothing
-static const int OPCODE_NOP = 15;
+enum Opcode {
+    OPCODE_ADD,
+    OPCODE_SUB,
+    OPCODE_INC,
+    OPCODE_DEC,
+    OPCODE_AND,
+    OPCODE_OR,
+    OPCODE_NOT,
+    OPCODE_LOAD,
+    OPCODE_STORE,
+    OPCODE_PRINTR,
+    OPCODE_HALT,
+    OPCODE_CMP,
+    OPCODE_JNZ,
+    OPCODE_MOV,
+    OPCODE_NOP
+};
 
 
 bool is_branch(int opcode);

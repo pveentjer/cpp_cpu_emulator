@@ -347,5 +347,6 @@ int load_program(CPU *cpu, string file)
     // todo: file is not closed on error.
     // Close the file
     infile.close();
+    cpu->frontend.ip_next_fetch = 0;
     return 0;
 }

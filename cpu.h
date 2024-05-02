@@ -39,14 +39,15 @@ struct StoreBuffer {
     uint16_t capacity;
     uint64_t head = 0;
     uint64_t tail = 0;
+    vector<int> *memory;
 
     optional<int> lookup(int addr);
 
-    bool is_empty();
+    bool is_idle();
 
     void write(int addr, int value);
 
-    void tick(vector<int> *memory);
+    void cycle();
 };
 
 /**
@@ -68,8 +69,11 @@ class CPU;
 struct Frontend {
     CPU *cpu;
     int bubble_size;
+    int32_t ip_next_fetch = -1;
 
-    bool tick();
+    void cycle();
+
+    bool is_idle();
 };
 
 /**
@@ -87,7 +91,9 @@ struct Backend {
 
     void execute(Instr *instr);
 
-    void tick();
+    void cycle();
+
+    bool is_idle();
 };
 
 using namespace std;
@@ -112,11 +118,10 @@ private:
 
     bool is_idle();
 
-    void tick();
+    void cycle();
 
 public:
     uint64_t cycles = 0;
-    int32_t ip = -1;
     vector<Instr> *code;
     vector<int> *arch_regs;
     vector<int> *memory;
@@ -129,7 +134,6 @@ public:
     Backend backend;
 
     CPU(CPU_Config config) {
-        ip = 0;
         code = new vector<Instr>();
         arch_regs = new vector<int>();
         for (int k = 0; k < config.arch_reg_count; k++) {
@@ -150,6 +154,7 @@ public:
 
         sb.entries = new StoreBufferEntry[config.sb_capacity];
         sb.capacity = config.sb_capacity;
+        sb.memory = memory;
 
         instr_queue.capacity = config.instr_queue_capacity;
         instr_queue.head = 0;

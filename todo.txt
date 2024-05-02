@@ -1,5 +1,7 @@
 TODO
 
+- ip should move to frontend
+
 - program loader: should use R prefix for instructions
 
 - pass program to load from the command line

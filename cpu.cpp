@@ -7,24 +7,19 @@
 
 bool CPU::is_idle()
 {
-    return ip == -1 && sb.is_empty();
+    return frontend.is_idle()
+        //&& backend.is_idle()
+        && sb.is_idle();
 }
 
-void CPU::tick()
+void CPU::cycle()
 {
-    if (ip > -1)
-    {
-        bool fetchNext = frontend.tick();
+    frontend.cycle();
 
-        backend.tick();
+    backend.cycle();
 
-        if (fetchNext)
-        {
-            ip++;
-        }
-    }
+    sb.cycle();
 
-    sb.tick(memory);
     cycles++;
 }
 
@@ -43,7 +38,7 @@ void CPU::run()
     while (!is_idle())
     {
         this_thread::sleep_for(cycle_period_ms);
-        tick();
+        cycle();
     }
 }
 
@@ -64,7 +59,7 @@ optional<int> StoreBuffer::lookup(int addr)
     return nullopt;
 }
 
-bool StoreBuffer::is_empty()
+bool StoreBuffer::is_idle()
 {
     return head == tail;
 }
@@ -77,19 +72,23 @@ void StoreBuffer::write(int addr, int value)
     tail++;
 }
 
-void StoreBuffer::tick(vector<int> *memory)
+void StoreBuffer::cycle()
 {
     if (head != tail)
     {
         StoreBufferEntry &entry = entries[head % capacity];
         memory->at(entry.addr) = entry.value;
-        printf("Writing to memory [%d]=%d\n", entry.addr, entry.value);
         head++;
     }
 }
 
-bool Frontend::tick()
+void Frontend::cycle()
 {
+    if (is_idle())
+    {
+        return;
+    }
+
     bool fetchNext;
     Slot *fetchSlot = &cpu->pipeline.slots[cpu->pipeline.index % PIPELINE_DEPTH];
 
@@ -103,7 +102,7 @@ bool Frontend::tick()
     else
     {
         fetchNext = true;
-        Instr *instr = &cpu->code->at(cpu->ip);
+        Instr *instr = &cpu->code->at(ip_next_fetch);
 
         // when a branch enters the pipeline, the pipeline will be filled with nops
         // to prevent a control hazard. This will guarantee that the branch instruction
@@ -117,20 +116,40 @@ bool Frontend::tick()
         fetchSlot->instr = instr;
     }
 
-    // Decode (ignored)
-
-    return fetchNext;
+    if(fetchNext)
+    {
+        ip_next_fetch++;
+    }
 }
 
-void Backend::tick()
+bool Frontend::is_idle()
 {
+    return ip_next_fetch == -1;
+}
+
+void Backend::cycle()
+{
+    if(is_idle()){
+        return;
+    }
+
     // Execute
-    Slot *executeSlot = &cpu->pipeline.slots[(cpu->pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
+    Slot *execute_slot = &cpu->pipeline.slots[(cpu->pipeline.index + STAGE_EXECUTE) % PIPELINE_DEPTH];
     if (trace)
     {
-        print_instr(executeSlot->instr);
+        print_instr(execute_slot->instr);
     }
-    execute(executeSlot->instr);
+    execute(execute_slot->instr);
+}
+
+
+
+bool Backend::is_idle()
+{
+    //todo: fix
+    //return true;
+
+    return false;
 }
 
 void Backend::execute(Instr *instr)
@@ -221,16 +240,13 @@ void Backend::execute(Instr *instr)
             int v1 = arch_regs->at(instr->code.JNZ.r_src);
             if (v1 != 0)
             {
-                // the ip will be bumped at the end again, so -1 is subtracted
-                cpu->ip = instr->code.JNZ.p_target - 1;
+                cpu->frontend.ip_next_fetch = instr->code.JNZ.p_target;
             }
             break;
         }
         case OPCODE_HALT:
         {
-            // at the end of the cycle, the ip is bumped again and it will
-            // end up as -1, and no further instructions will be processed.
-            cpu->ip = -2;
+            cpu->frontend.ip_next_fetch = -1;
             break;
         }
         case OPCODE_NOP:

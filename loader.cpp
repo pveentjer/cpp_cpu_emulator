@@ -34,7 +34,6 @@ bool isValidVariable(const string &s)
     return true;
 }
 
-
 void load_program(CPU *cpu, string file)
 {
     // Open the file containing the program instructions

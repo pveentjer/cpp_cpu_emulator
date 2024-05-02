@@ -12,4 +12,4 @@
 
 using namespace std;
 
-int load_program(CPU* cpu, string path);
+void load_program(CPU* cpu, string path);

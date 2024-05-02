@@ -35,14 +35,14 @@ bool isValidVariable(const string &s)
 }
 
 
-int load_program(CPU *cpu, string file)
+void load_program(CPU *cpu, string file)
 {
     // Open the file containing the program instructions
     ifstream infile(file);
     if (!infile.is_open())
     {
         cerr << "Failed to open program file." << endl;
-        return 1;
+        throw std::runtime_error("Could not open program file.");
     }
 
     unordered_map<string, int> labels = unordered_map<string, int>();
@@ -74,7 +74,7 @@ int load_program(CPU *cpu, string file)
         if (!(iss >> first_token))
         {
             cerr << "Invalid instruction format at line " << line_nr << "." << endl;
-            return 1;
+            throw std::runtime_error("Invalid program");
         }
 
         // check if it is a variable
@@ -87,14 +87,14 @@ int load_program(CPU *cpu, string file)
                 if (!isValidVariable(name))
                 {
                     cerr << "Invalid VAR name [" << name << "] at line_nr " << line_nr << "." << endl;
-                    return 1;
+                    throw std::runtime_error("Invalid program");
                 }
 
                 optional<int> existing_variable = mapGet(variables, name);
                 if (existing_variable.has_value())
                 {
                     cerr << "Variable [" << name << "] not unique at line " << line_nr << "." << endl;
-                    return 1;
+                    throw std::runtime_error("Invalid program");
                 }
 
                 int address = heapLimit;
@@ -105,7 +105,7 @@ int load_program(CPU *cpu, string file)
             else
             {
                 cerr << "Invalid VAR format at line_nr " << line_nr << "." << endl;
-                return 1;
+                throw std::runtime_error("Invalid program");
             }
             continue;
         }
@@ -117,15 +117,14 @@ int load_program(CPU *cpu, string file)
             if (!isValidLabel(label_name))
             {
                 cerr << "Invalid label_name [" << label_name << "]at line " << line_nr << "." << endl;
-                return 1;
-
+                throw std::runtime_error("Invalid program");
             }
 
             optional<int> existing_label = mapGet(labels, label_name);
             if (existing_label.has_value())
             {
                 cerr << "Label [" << label_name << "] not unique at line " << line_nr << "." << endl;
-                return 1;
+                throw std::runtime_error("Invalid program");
             }
 
             labels.insert({label_name, cpu->code->size()});
@@ -152,7 +151,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid AND instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -168,7 +167,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid OR instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -183,14 +182,14 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid NOT instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
                 case OPCODE_ADD:
                 {
                     int r_src1, r_src2, r_dst;
-                    if (iss >> r_dst >> r_src1 >> r_src2 )
+                    if (iss >> r_dst >> r_src1 >> r_src2)
                     {
                         instr.code.ADD.r_src1 = r_src1;
                         instr.code.ADD.r_src2 = r_src2;
@@ -199,14 +198,14 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid ADD instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
                 case OPCODE_SUB:
                 {
                     int r_src1, r_src2, r_dst;
-                    if (iss >> r_dst >> r_src1 >> r_src2 )
+                    if (iss >> r_dst >> r_src1 >> r_src2)
                     {
                         instr.code.SUB.r_src1 = r_src1;
                         instr.code.SUB.r_src2 = r_src2;
@@ -215,7 +214,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid SUB instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -229,7 +228,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid DEC instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -243,7 +242,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid INC instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -257,7 +256,7 @@ int load_program(CPU *cpu, string file)
                         if (!variable.has_value())
                         {
                             cerr << "Variable [" << name << "] not found at line " << line_nr << "." << endl;
-                            return 1;
+                            throw std::runtime_error("Invalid program");
                         }
 
                         instr.code.LOAD.m_src = variable.value();
@@ -266,7 +265,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid LOAD instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -280,7 +279,7 @@ int load_program(CPU *cpu, string file)
                         if (!variable.has_value())
                         {
                             cerr << "Variable [" << name << "] not found at line " << line_nr << "." << endl;
-                            return 1;
+                            throw std::runtime_error("Invalid program");
                         }
 
                         instr.code.STORE.r_src = r_src;
@@ -289,7 +288,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid STORE instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -309,13 +308,13 @@ int load_program(CPU *cpu, string file)
                         {
                             cerr << "Unknown target [" << label << "] at line_nr " << line_nr << "."
                                  << endl;
-                            return 1;
+                            throw std::runtime_error("Invalid program");
                         }
                     }
                     else
                     {
                         cerr << "Invalid JNZ instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -329,7 +328,7 @@ int load_program(CPU *cpu, string file)
                     else
                     {
                         cerr << "Invalid PRINTR instruction format at line_nr " << line_nr << "." << endl;
-                        return 1;
+                        throw std::runtime_error("Invalid program");
                     }
                     break;
                 }
@@ -340,13 +339,18 @@ int load_program(CPU *cpu, string file)
         else
         {
             cerr << "Unknown mnemonic: " << first_token << endl;
-            return 1;
+            throw std::runtime_error("Invalid program");
         }
     }
 
     // todo: file is not closed on error.
-    // Close the file
     infile.close();
-    cpu->frontend.ip_next_fetch = 0;
-    return 0;
+    if (cpu->code->size() > 0)
+    {
+        cpu->frontend.ip_next_fetch = 0;
+    }
+    else
+    {
+        cpu->frontend.ip_next_fetch = -1;
+    }
 }

@@ -6,14 +6,13 @@ int main()
     CPU_Config *config = new CPU_Config();
     config->trace = true;
     config->cpu_frequency_Hz=10;
+    config->memory_size = 16;
+    config->arch_reg_count = 16;
+    config->sb_capacity = 4;
 
     CPU *cpu = new CPU(*config);
 
-    int res = load_program(cpu, "program.asm");
-    if (res != 0)
-    {
-        return -1;
-    }
+    load_program(cpu, "program.asm");
 
     cpu->run();
     cpu->print_memory();

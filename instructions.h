@@ -26,9 +26,9 @@ enum Opcode {
 };
 
 
-bool is_branch(int opcode);
+bool is_branch(Opcode opcode);
 
-static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
+static const std::unordered_map<std::string, Opcode> MNEMONIC_TO_OPCODE = {
         {"ADD",    OPCODE_ADD},
         {"SUB",    OPCODE_SUB},
         {"AND",    OPCODE_AND},
@@ -48,7 +48,7 @@ static const std::unordered_map<std::string, int> MNEMONIC_TO_OPCODE = {
 
 struct Instr
 {
-    int opcode;
+    Opcode opcode;
     // r_ prefix means it is a register
     // m_ prefix means it is from memory
     // p_ prefix means it is an address in the program

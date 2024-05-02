@@ -59,7 +59,7 @@ void print_instr(Instr *instr)
     }
 }
 
-bool is_branch(int opcode)
+bool is_branch(Opcode opcode)
 {
     switch (opcode)
     {

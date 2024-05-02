@@ -139,6 +139,15 @@ struct Frontend
 
 };
 
+struct ExecutionUnit{
+    ROB_Slot *slot;
+    StoreBuffer *sb;
+    CPU *cpu;
+    vector<int> *arch_regs;
+    vector<int> *memory;
+
+    void tick();
+};
 /**
  * The Backend is responsible for the actual execution of the instruction.
  *
@@ -154,8 +163,7 @@ struct Backend
     vector<int> *memory;
     InstrQueue *instr_queue;
     ROB rob;
-
-    void execute(Instr *instr);
+    ExecutionUnit eu;
 
     void cycle();
 
@@ -180,6 +188,8 @@ struct CPU_Config
 
     uint8_t rob_capacity = 16;
 };
+
+
 
 class CPU
 {
@@ -246,6 +256,11 @@ public:
         backend.rob.tail = 0;
         backend.rob.capacity = config.rob_capacity;
         backend.rob.slots = new ROB_Slot[config.rob_capacity];
+
+        backend.eu.sb = &sb;
+        backend.eu.cpu = this;
+        backend.eu.arch_regs = arch_regs;
+        backend.eu.memory = memory;
     }
 
     /**

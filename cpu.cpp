@@ -131,7 +131,9 @@ void Backend::cycle()
         {
             print_instr(slot->instr);
         }
-        execute(slot->instr);
+
+        eu.slot = slot;
+        eu.tick();
         rob.head++;
     }
 
@@ -152,8 +154,9 @@ bool Backend::is_idle()
     return rob.size() == 0;
 }
 
-void Backend::execute(Instr *instr)
+void ExecutionUnit::tick()
 {
+    Instr *instr = slot->instr;
     switch (instr->opcode)
     {
         case OPCODE_ADD:
@@ -264,3 +267,4 @@ void Backend::execute(Instr *instr)
             throw runtime_error("Unrecognized opcode");
     }
 }
+

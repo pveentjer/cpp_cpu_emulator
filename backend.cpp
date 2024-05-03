@@ -7,14 +7,35 @@
 
 void Backend::cycle()
 {
-    // execute any rs that has all operands ready
+    // retire any instruction that has been executed and hasn't been retired yet.
+    // instructions can execute out of order, but will retire in order.
+    for (uint64_t k = rob.head; k < rob.tail; k++)
+    {
+        ROB_Slot *slot = &rob.slots[k % rob.capacity];
+        if (slot->state == ROB_SLOT_EXECUTED)
+        {
+            printf("Retiring ");
+            print_instr(slot->instr);
+            // todo: retire
+            rob.head++;
+            retire(slot);
+        }
+        else
+        {
+            // As soon as we find an instruction that has not been executed, we stop
+            break;
+        }
+    }
+
+    // execute/submit any rs that has all operands ready
     for (uint64_t k = rs_ready_head; k < rs_ready_tail; k++)
     {
-        uint16_t rs_index = rs_ready_array[k % rs_count];
+        uint16_t rs_index = rs_ready_queue[k % rs_count];
 
         RS *rs = &rs_array[rs_index];
         if (trace)
         {
+            printf("Executing ");
             print_instr(rs->rob_slot->instr);
         }
 
@@ -29,15 +50,16 @@ void Backend::cycle()
     int unreserved_cnt = rob.tail - rob.reserved;
     for (int k = 0; k < unreserved_cnt; k++)
     {
-        if (rs_free_count == 0)
+        if (rs_free_stack_size == 0)
         {
+
             // There are no free reservation stations, so we are done
             break;
         }
 
         // get a free RS
-        RS *rs = &rs_array[this->rs_free_array[rs_free_count - 1]];
-        rs_free_count--;
+        rs_free_stack_size--;
+        RS *rs = &rs_array[this->rs_free_stack[rs_free_stack_size]];
 
         ROB_Slot *slot = &rob.slots[rob.reserved % rob.capacity];
         rob.reserved++;
@@ -45,9 +67,9 @@ void Backend::cycle()
 
         if (rs->state == RS_READY)
         {
-            broadcast_rs_ready(rs);
+            on_rs_ready(rs);
         }
-        print_instr(slot->instr);
+        //print_instr(slot->instr);
     }
 
     // place instructions from the instruction queue into the rob.
@@ -55,14 +77,15 @@ void Backend::cycle()
     for (int k = 0; k < cnt; k++)
     {
         Instr *instr = instr_queue->dequeue();
+        //print_instr(instr);
         uint64_t i = rob.tail % rob.capacity;
         ROB_Slot *slot = &rob.slots[i];
         slot->instr = instr;
-        slot->state = SLOT_NEW;
+        slot->state = ROB_SLOT_NEW;
         rob.tail++;
 
-        printf("Inserting into ROB ");
-        print_instr(slot->instr);
+        //printf("Inserting into ROB ");
+        //print_instr(slot->instr);
     }
 }
 
@@ -141,10 +164,10 @@ bool Backend::is_idle()
     return rob.size() == 0;
 }
 
-void Backend::broadcast_rs_ready(RS *rs)
+void Backend::on_rs_ready(RS *rs)
 {
     uint64_t index = rs_ready_tail % rs_count;
-    rs_ready_array[index] = rs->rs_index;
+    rs_ready_queue[index] = rs->rs_index;
     rs_ready_tail++;
 }
 
@@ -259,7 +282,7 @@ void ExecutionUnit::execute()
             throw runtime_error("Unrecognized opcode");
     }
 
-    rob_slot->state = SLOT_EXECUTED;
+    rob_slot->state = ROB_Slot_State::ROB_SLOT_EXECUTED;
 }
 
 //void RS::srcReady(uint16_t src_index, int src)
@@ -277,12 +300,12 @@ void ExecutionUnit::execute()
 //    }
 //}
 //
-//void RS::storeResult()
-//{
-//    Instr *instr = rob_slot->instr;
-//
-//    switch (instr->opcode)
-//    {
+void Backend::retire(ROB_Slot *rob_slot)
+{
+    Instr *instr = rob_slot->instr;
+
+    switch (instr->opcode)
+    {
 //        case OPCODE_ADD:
 //            backend->arch_regs->at(instr->code.ADD.r_dst) = result;
 //            break;
@@ -331,18 +354,18 @@ void ExecutionUnit::execute()
 ////            }
 //            break;
 //        }
-//        case OPCODE_HALT:
-//            backend->frontend->ip_next_fetch = -1;
-//            break;
-//        case OPCODE_NOP:
-//            break;
-//        default:
-//            throw runtime_error("Unrecognized opcode");
-//    }
+        case OPCODE_HALT:
+            frontend->ip_next_fetch = -1;
+            break;
+        case OPCODE_NOP:
+            break;
+        default:
+            throw runtime_error("Unrecognized opcode");
+    }
 //
 //
 //    // todo: only when the result is written, the RS is freed.
 //    // the rs can be returned to the pool
-//    backend->rs_free_array[backend->rs_free_count] = rs_index;
-//    backend->rs_free_count++;
-//}
+//    backend->rs_free_stack[backend->rs_free_stack_size] = rs_index;
+//    backend->rs_free_stack_size++;
+}

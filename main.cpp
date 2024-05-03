@@ -9,7 +9,7 @@ int main()
     config->memory_size = 16;
     config->arch_reg_count = 16;
     config->sb_capacity = 4;
-
+    config->rs_count = 16;
     CPU *cpu = new CPU(*config);
 
     load_program(cpu, "program2.asm");

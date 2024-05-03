@@ -46,7 +46,7 @@ struct CPU_Config
 
     uint8_t rob_capacity = 16;
 
-    uint16_t rs_count = 1;
+    uint16_t rs_count = 16;
 };
 
 
@@ -135,16 +135,16 @@ public:
             rs.backend = &backend;
             rs.rs_index = k;
         }
-        backend.rs_free_count = config.rs_count;
-        backend.rs_free_array = new uint16_t[config.rs_count];
+        backend.rs_free_stack_size = config.rs_count;
+        backend.rs_free_stack = new uint16_t[config.rs_count];
         for (uint16_t k = 0; k < config.rs_count; k++)
         {
-            backend.rs_free_array[k] = k;
+            backend.rs_free_stack[k] = k;
         }
 
         backend.rs_ready_head = 0;
         backend.rs_ready_tail = 0;
-        backend.rs_ready_array = new uint16_t[config.rs_count];
+        backend.rs_ready_queue = new uint16_t[config.rs_count];
     }
 
     /**

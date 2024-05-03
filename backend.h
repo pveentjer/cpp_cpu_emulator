@@ -9,14 +9,16 @@
 #include "memory_subsystem.h"
 #include "frontend.h"
 
-static const int SLOT_NEW = 0;
-static const int SLOT_EXECUTED = 0;
+enum ROB_Slot_State {
+    ROB_SLOT_NEW,
+    ROB_SLOT_EXECUTED
+};
 
 struct ROB_Slot
 {
     Instr *instr;
     int result;
-    int state;
+    ROB_Slot_State state;
 };
 
 struct ROB
@@ -73,10 +75,13 @@ struct ExecutionUnit
 struct Backend
 {
     RS *rs_array;
-    uint16_t *rs_free_array;
-    uint16_t rs_free_count;
 
-    uint16_t *rs_ready_array;
+    // A stack of free RS.
+    uint16_t *rs_free_stack;
+    uint16_t rs_free_stack_size;
+
+    // A circular queue with RS that are ready to be submitted
+    uint16_t *rs_ready_queue;
     uint64_t rs_ready_tail, rs_ready_head;
 
     Frontend *frontend;
@@ -95,7 +100,9 @@ struct Backend
 
     bool is_idle();
 
-    void broadcast_rs_ready(RS *rs);
+    void on_rs_ready(RS *rs);
+
+    void retire(ROB_Slot *rob_slot);
 
     void init_rs(RS *rs, ROB_Slot *rob_slot);
 };
@@ -118,7 +125,6 @@ struct RS
     RS_State state;
 
     uint16_t rs_index;
-    // The maximum num
     int src[MAX_SRC_OPERANDS];
 
     // todo: doesn't work because of multiple target rs.

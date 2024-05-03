@@ -9,3 +9,12 @@
 ;    ADD 2 0 1
 ;    STORE 2 C
     HALT
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP

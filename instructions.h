@@ -7,6 +7,8 @@
 #include <map>
 #include <unordered_map>
 
+static const int MAX_SRC_OPERANDS = 3;
+
 enum Opcode
 {
     OPCODE_ADD,

@@ -25,6 +25,7 @@ void Frontend::cycle()
     }
     else
     {
+        printf("ip_next_fetch %d\n", ip_next_fetch);
         Instr *instr = &code->at(ip_next_fetch);
 
         // when a branch enters the pipeline, the pipeline will be filled with nops

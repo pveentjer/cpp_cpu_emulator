@@ -46,7 +46,7 @@ struct CPU_Config
 
     uint8_t rob_capacity = 16;
 
-    uint8_t rs_count = 1;
+    uint16_t rs_count = 1;
 };
 
 
@@ -118,6 +118,7 @@ public:
         backend.instr_queue = &instr_queue;
         backend.rob.head = 0;
         backend.rob.tail = 0;
+        backend.rob.reserved = 0;
         backend.rob.capacity = config.rob_capacity;
         backend.rob.slots = new ROB_Slot[config.rob_capacity];
 
@@ -126,6 +127,7 @@ public:
         backend.eu.arch_regs = arch_regs;
         backend.eu.memory = memory;
 
+        backend.rs_count = config.rs_count;
         backend.rs_array = new RS[config.rs_count];
         for (uint16_t k = 0; k < config.rs_count; k++)
         {
@@ -139,6 +141,10 @@ public:
         {
             backend.rs_free_array[k] = k;
         }
+
+        backend.rs_ready_head = 0;
+        backend.rs_ready_tail = 0;
+        backend.rs_ready_array = new uint16_t[config.rs_count];
     }
 
     /**

@@ -65,6 +65,9 @@ bool is_branch(Opcode opcode)
     {
         case OPCODE_JNZ:
             return true;
+        case OPCODE_HALT:
+            // for the time being it is a branch instruction to fill the pipeline with nops.
+            return true;
         default:
             return false;
     }

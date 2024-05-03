@@ -12,7 +12,7 @@ int main()
 
     CPU *cpu = new CPU(*config);
 
-    load_program(cpu, "program.asm");
+    load_program(cpu, "program2.asm");
 
     cpu->run();
     cpu->print_memory();

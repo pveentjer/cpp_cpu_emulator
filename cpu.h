@@ -13,177 +13,18 @@
 
 #include "instructions.h"
 #include "utils.h"
+#include "memory_subsystem.h"
+#include "backend.h"
+#include "frontend.h"
 
 using namespace std;
 
 
-// currently just 2 stages; fetch + decode
-static const int PIPELINE_DEPTH = 10;
 
-struct StoreBufferEntry
-{
-    int value;
-    int addr;
-};
 
-struct StoreBuffer
-{
-    StoreBufferEntry *entries;
-    uint16_t capacity;
-    uint64_t head = 0;
-    uint64_t tail = 0;
-    vector<int> *memory;
-
-    optional<int> lookup(int addr);
-
-    bool is_empty();
-
-    void write(int addr, int value);
-
-    void cycle();
-};
-
-/**
- * The InstrQueue sits between frontend and backend.
- */
-struct InstrQueue
-{
-    Instr **entries;
-    uint16_t capacity;
-    uint64_t head = 0;
-    uint64_t tail = 0;
-
-    bool is_empty() const
-    {
-        return head == tail;
-    }
-
-    uint16_t size() const
-    {
-        return tail - head;
-    }
-
-    bool is_full() const
-    {
-        return size() == capacity;
-    }
-
-    Instr *dequeue()
-    {
-        Instr *instr = entries[head % capacity];
-        head++;
-        return instr;
-    }
-
-    void enqueue(Instr *instr)
-    {
-        entries[tail % capacity] = instr;
-        tail++;
-    }
-};
-
-static const int SLOT_NEW = 0;
-static const int SLOT_EXECUTED = 0;
-
-struct ROB_Slot
-{
-    Instr *instr;
-    int result;
-    int state;
-};
-
-struct ROB
-{
-    uint64_t head, tail;
-    uint16_t capacity;
-    ROB_Slot *slots;
-
-    uint16_t empty_slots()
-    {
-        return capacity - size();
-    }
-
-    bool is_empty()
-    {
-        return head == tail;
-    }
-
-    uint16_t size()
-    {
-        return tail - head;
-    }
-
-    bool is_full()
-    {
-        return size() == capacity;
-    }
-};
 
 class CPU;
 
-/**
- * The Frontend is responsible for fetching and decoding instruction
- * and then will place them on the InstrQueue for the backend.
- */
-struct Frontend
-{
-    CPU *cpu;
-    int bubble_remain;
-    int32_t ip_next_fetch = -1;
-    Instr *nop;
-    InstrQueue *instr_queue;
-
-    void cycle();
-
-    bool is_idle();
-
-};
-
-struct ExecutionUnit
-{
-    ROB_Slot *slot;
-    StoreBuffer *sb;
-    CPU *cpu;
-    vector<int> *arch_regs;
-    vector<int> *memory;
-
-    void tick();
-};
-
-
-struct ReservationStation
-{
-    int required_operands;
-    int ready_operands;
-    ROB_Slot *robSlot;
-};
-
-/**
- * The Backend is responsible for the actual execution of the instruction.
- *
- * It will take instructions from the InstrQueue.
- */
-struct Backend
-{
-    ReservationStation *rs_array;
-    uint16_t *rs_free_array;
-
-    CPU *cpu;
-    // when true, prints every instruction before being executed.
-    bool trace;
-    vector<int> *arch_regs;
-    StoreBuffer *sb;
-    vector<int> *memory;
-    InstrQueue *instr_queue;
-    ROB rob;
-    ExecutionUnit eu;
-    uint8_t rs_free_count;
-
-    void cycle();
-
-    bool is_idle();
-
-};
 
 using namespace std;
 
@@ -194,6 +35,8 @@ struct CPU_Config
     uint32_t memory_size = 16;
     // the number of architectural registers
     uint16_t arch_reg_count = 16;
+    // the number of physical registers
+    uint16_t phys_reg_count = 64;
     // true if every instruction execution should be printed
     bool trace = false;
     // the capacity of the store buffer
@@ -218,8 +61,8 @@ private:
 
 public:
     uint64_t cycles = 0;
-    vector<Instr> *code;
     vector<int> *arch_regs;
+    vector<int> *phys_regs;
     vector<int> *memory;
     InstrQueue instr_queue;
     StoreBuffer sb;
@@ -229,12 +72,18 @@ public:
 
     CPU(CPU_Config config)
     {
-        code = new vector<Instr>();
         arch_regs = new vector<int>();
         for (int k = 0; k < config.arch_reg_count; k++)
         {
             arch_regs->push_back(0);
         }
+
+        phys_regs = new vector<int>();
+        for (int k = 0; k < config.phys_reg_count; k++)
+        {
+            phys_regs->push_back(0);
+        }
+
         memory = new vector<int>();
         for (int k = 0; k < config.memory_size; k++)
         {
@@ -253,15 +102,15 @@ public:
         instr_queue.tail = 0;
         instr_queue.entries = new Instr *[config.instr_queue_capacity];
 
+        frontend.code = new vector<Instr>();
         frontend.ip_next_fetch = -1;
         frontend.bubble_remain = 0;
         frontend.nop = new Instr();
         frontend.nop->opcode = OPCODE_NOP;
-        frontend.cpu = this;
         frontend.bubble_remain = 0;
         frontend.instr_queue = &instr_queue;
 
-        backend.cpu = this;
+        backend.frontend = &frontend;
         backend.trace = config.trace;
         backend.arch_regs = arch_regs;
         backend.sb = &sb;
@@ -273,11 +122,17 @@ public:
         backend.rob.slots = new ROB_Slot[config.rob_capacity];
 
         backend.eu.sb = &sb;
-        backend.eu.cpu = this;
+        backend.eu.backend = &backend;
         backend.eu.arch_regs = arch_regs;
         backend.eu.memory = memory;
 
-        backend.rs_array = new ReservationStation[config.rs_count];
+        backend.rs_array = new RS[config.rs_count];
+        for (uint16_t k = 0; k < config.rs_count; k++)
+        {
+            RS &rs = backend.rs_array[k];
+            rs.backend = &backend;
+            rs.rs_index = k;
+        }
         backend.rs_free_count = config.rs_count;
         backend.rs_free_array = new uint16_t[config.rs_count];
         for (uint16_t k = 0; k < config.rs_count; k++)

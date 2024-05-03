@@ -11,4 +11,13 @@ add_executable(cpu_emulator main.cpp
         loader.cpp
         loader.h
         cpu.cpp
-        cpu.h)
+        cpu.h
+        backend.cpp
+        backend.h
+        frontend.cpp
+        frontend.h
+        memory_subsystem.cpp
+        memory_subsystem.h
+        common.cpp
+        common.h
+)

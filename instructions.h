@@ -121,4 +121,45 @@ struct Instr
 
 void print_instr(Instr *instr);
 
+
+/**
+ * The InstrQueue sits between frontend and backend.
+ */
+struct InstrQueue
+{
+    Instr **entries;
+    uint16_t capacity;
+    uint64_t head = 0;
+    uint64_t tail = 0;
+
+    bool is_empty() const
+    {
+        return head == tail;
+    }
+
+    uint16_t size() const
+    {
+        return tail - head;
+    }
+
+    bool is_full() const
+    {
+        return size() == capacity;
+    }
+
+    Instr *dequeue()
+    {
+        Instr *instr = entries[head % capacity];
+        head++;
+        return instr;
+    }
+
+    void enqueue(Instr *instr)
+    {
+        entries[tail % capacity] = instr;
+        tail++;
+    }
+};
+
+
 #endif //CPU_EMULATOR_INSTRUCTIONS_H

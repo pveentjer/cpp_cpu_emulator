@@ -3,13 +3,15 @@
 //
 
 #include "backend.h"
-
+#include "utils.h"
 
 void Backend::cycle()
 {
     cycle_retire();
+
     // send for execution units
     cycle_dispatch();
+
     // select reservation stations
     cycle_issue();
 
@@ -17,15 +19,12 @@ void Backend::cycle()
     int cnt = std::min(rob.empty_slots(), instr_queue->size());
     for (int k = 0; k < cnt; k++)
     {
-        // todo: register renaming
-
-
         Instr *instr = instr_queue->dequeue();
         //print_instr(instr);
         uint64_t i = rob.tail % rob.capacity;
         ROB_Slot *slot = &rob.slots[i];
         slot->instr = instr;
-        slot->state = ROB_SLOT_NEW;
+        slot->state = ROB_SLOT_FREE;
         rob.tail++;
 
         //printf("Inserting into ROB ");
@@ -33,8 +32,9 @@ void Backend::cycle()
     }
 }
 
+// Add as many instructions to RS's
 void Backend::cycle_issue()
-{// Add as many instructions to RS's
+{
     int unreserved_cnt = rob.tail - rob.reserved;
     for (int k = 0; k < unreserved_cnt; k++)
     {
@@ -48,25 +48,107 @@ void Backend::cycle_issue()
         rs_free_stack_size--;
         RS *rs = &rs_array[rs_free_stack[rs_free_stack_size]];
 
-        ROB_Slot *slot = &rob.slots[rob.reserved % rob.capacity];
+        ROB_Slot *rob_slot = &rob.slots[rob.reserved % rob.capacity];
+        rob_slot->rs = rs;
+
         rob.reserved++;
-        rs->input_op_cnt = slot->instr->input_ops_cnt;
-        rs->rob_slot = slot;
-        rs->src_completed_cnt = 0;
-        if (rs->input_op_cnt == 0)
+        Instr *instr = rob_slot->instr;
+        rs->rob_slot = rob_slot;
+
+        // prepare the input operands.
+        rs->input_op_cnt = instr->input_ops_cnt;
+        rs->input_opt_ready_cnt = 0;
+        for (int l = 0; l < instr->input_ops_cnt; l++)
         {
+            Operand *input_op_instr = &instr->input_ops[l];
+            Operand *input_op_rs = &rs->input_ops[l];
+            input_op_rs->type = input_op_instr->type;
+            switch (input_op_instr->type)
+            {
+                case OperandType::REGISTER:
+                {
+                    Phys_Reg *phys_reg = &phys_reg_array[input_op_instr->reg];
+                    if (phys_reg->valid)
+                    {
+                        input_op_rs->type = OperandType::CONSTANT;
+                        input_op_rs->constant = phys_reg->value;
+                        rs->input_opt_ready_cnt++;
+                    }
+                    else
+                    {
+                        RAT_Entry *rat_entry = &rat->entries[input_op_instr->reg];
+                        if (!rat_entry->valid)
+                        {
+                            throw std::runtime_error("Invalid rat_entry");
+                        }
+                        input_op_rs->reg = rat_entry->phys_reg;
+                    }
+                    break;
+                }
+                case OperandType::CODE:
+                    input_op_rs->code_addr = input_op_instr->code_addr;
+                    rs->input_opt_ready_cnt++;
+                    break;
+                case OperandType::CONSTANT:
+                    input_op_rs->constant = input_op_instr->constant;
+                    rs->input_opt_ready_cnt++;
+                    break;
+                case OperandType::MEMORY:
+                    input_op_rs->memory_addr = input_op_instr->memory_addr;
+                    rs->input_opt_ready_cnt++;
+                    break;
+                default:
+                    throw std::runtime_error("Unhandled operand type while renaming");
+            }
+        }
+
+        // prepare the output operands
+        for (int l = 0; l < instr->output_ops_cnt; l++)
+        {
+            Operand *output_op_instr = &instr->output_ops[l];
+            Operand *output_op_rs = &rs->output_ops[l];
+            output_op_rs->type = output_op_instr->type;
+            switch (output_op_instr->type)
+            {
+                case OperandType::REGISTER:
+                {
+                    uint16_t phys_reg = next_phys_reg;
+                    next_phys_reg++;
+                    rat->entries[output_op_instr->reg].phys_reg = phys_reg;
+                    output_op_rs->reg = phys_reg;
+                    printf("Register rename from %d to %d\n", output_op_instr->reg, output_op_rs->reg);
+                    break;
+                }
+//                case OperandType::MEMORY:
+//                    output_op_rs->memory_addr = output_op_instr->memory_addr;
+//                    rs->input_opt_ready_cnt++;
+//                    break;
+                default:
+                    throw std::runtime_error("Unhandled operand type while renaming");
+            }
+        }
+
+
+        if (rs->input_op_cnt == rs->input_opt_ready_cnt)
+        {
+            printf("Issue READY ");
+            print_instr(rs->rob_slot->instr);
+
+
             rs->state = RS_READY;
             on_rs_ready(rs);
         }
         else
-        {
+        {printf("Issue ISSUED ");
+            print_instr(rs->rob_slot->instr);
             rs->state = RS_ISSUED;
         }
 
-        //print_instr(slot->instr);
+        //print_instr(rob_slot->instr);
     }
 }
 
+// The dispatch: so sending ready reservation stations to execution units.
 void Backend::cycle_dispatch()
 {// issue any rs that has all in_operands ready
     for (uint64_t k = rs_ready_head; k < rs_ready_tail; k++)
@@ -76,7 +158,7 @@ void Backend::cycle_dispatch()
         RS *rs = &rs_array[rs_index];
         if (trace)
         {
-            printf("Executing ");
+            printf("Dispatch (execute) ");
             print_instr(rs->rob_slot->instr);
         }
 
@@ -86,19 +168,24 @@ void Backend::cycle_dispatch()
         Instr *instr = rs->rob_slot->instr;
         for (int op_index = 0; op_index < instr->input_ops_cnt; op_index++)
         {
-            Operand operand = instr->input_ops[op_index];
-            switch (operand.type)
+            Operand *operand = &rs->input_ops[op_index];
+            eu.in_operands[op_index].type = operand->type;
+
+            switch (operand->type)
             {
+                case CONSTANT:
+                    eu.in_operands[op_index].constant = operand->constant;
+                    break;
                 case REGISTER:
                     // we loop up the physical register for the architectural register
                     // and then load the value
                     //eu.in_operands[op_index].constant =
                     break;
                 case MEMORY:
-                    eu.in_operands[op_index].memory_addr = operand.memory_addr;
+                    eu.in_operands[op_index].memory_addr = operand->memory_addr;
                     break;
                 case CODE:
-                    eu.in_operands[op_index].code_addr = operand.code_addr;
+                    eu.in_operands[op_index].code_addr = operand->code_addr;
                     break;
                 default:
                     throw runtime_error("Backend::cycle: Unknown operand type");
@@ -107,23 +194,69 @@ void Backend::cycle_dispatch()
 
         eu.execute();
 
-        printf("eu.result=%d\n", eu.result);
+        int result = eu.result;
 
-        rs->rob_slot->result = eu.result;
+        rs->rob_slot->result = result;
         rs->rob_slot->state = ROB_SLOT_EXECUTED;
-
-
-//        int result = eu.result;
-//        if (rs->dst_phys_reg > -1)
-//        {
-//            phys_regs[rs->dst_phys_reg] = result;
-//            // and now we need to do the broadcast.
-//        }
 
         // todo: should become pending once the instruction is queued for an EU
         rs->state = RS_COMPLETED;
+
+        for (int out_op_index = 0; out_op_index < instr->output_ops_cnt; out_op_index++)
+        {
+            Operand *out_op = &rs->output_ops[out_op_index];
+            if (out_op->type == OperandType::REGISTER)
+            {
+                // update the physical register.
+                Phys_Reg *phys_reg = &phys_reg_array[out_op->reg];
+                phys_reg->valid = true;
+                phys_reg->value = result;
+
+                // Broadcast the value to any RS that needs it.
+                cdb_broadcast(out_op->reg, result);
+            }
+        }
+
+        // should the phys register be invalidated here?
     }
     rs_ready_head = rs_ready_tail;
+}
+
+void Backend::cdb_broadcast(uint16_t phys_reg, int result)
+{// broadcast the value.
+// Iterate over all RS that are in RS_ISSUED (so waiting)
+
+    for (int k = 0; k < rs_count; k++)
+    {
+        RS *rs = &rs_array[k];
+
+        if (rs->state != RS_ISSUED)
+        {
+            continue;
+        }
+
+        // iterate over all input operands of the rs
+        for (int l = 0; l < rs->rob_slot->instr->input_ops_cnt; l++)
+        {
+
+            Operand *target_rs_in_op = &rs->input_ops[l];
+            if (target_rs_in_op->type != REGISTER || target_rs_in_op->reg != phys_reg)
+            {
+                continue;
+            }
+
+            // Directly update the value
+            target_rs_in_op->type = CONSTANT;
+            target_rs_in_op->constant = result;
+            rs->input_opt_ready_cnt++;
+
+            if (rs->input_op_cnt == rs->input_opt_ready_cnt)
+            {
+                rs->state = RS_READY;
+                on_rs_ready(rs);
+            }
+        }
+    }
 }
 
 void Backend::cycle_retire()
@@ -136,6 +269,8 @@ void Backend::cycle_retire()
         {
             printf("Retiring ");
             print_instr(slot->instr);
+
+
             // todo: retire
             retire(slot);
             rob.head++;
@@ -210,7 +345,6 @@ void ExecutionUnit::execute()
             // not be able to see some of its own writes and become incoherent.
 
             // todo: Load to store forwarding
-
             result = backend->memory->at(in_operands[0].memory_addr);
 //                    sb->lookup(instr->code.LOAD.m_src)
 //                    .value_or(memory_addr->at(instr->code.LOAD.m_src));
@@ -223,11 +357,17 @@ void ExecutionUnit::execute()
 //            sb->write(instr->code.STORE.m_dst, arch_regs->at(instr->code.STORE.r_src));
 //            break;
 //        }
-//        case OPCODE_PRINTR:
-//        {
-//            printf("                                R%d=%d\n", instr->code.PRINTR.r_src, src[0]);
-//            break;
-//        }
+        case OPCODE_PRINTR:
+        {
+            Operand &operand = in_operands[0];
+            if (operand.type != CONSTANT)
+            {
+                printf("wtf\n");
+            }
+            int i = operand.constant;
+            printf("                                R%d=%d\n", instr->input_ops[0].reg, i);
+            break;
+        }
 //        case OPCODE_JNZ:
 //        {
 //            int v1 = arch_regs->at(instr->code.JNZ.r_src);
@@ -245,6 +385,7 @@ void ExecutionUnit::execute()
             throw runtime_error("Execute:Unrecognized opcode");
     }
 
+
     rob_slot->state = ROB_Slot_State::ROB_SLOT_EXECUTED;
 }
 
@@ -252,48 +393,32 @@ void Backend::retire(ROB_Slot *rob_slot)
 {
     Instr *instr = rob_slot->instr;
 
-    switch (instr->opcode)
+    for (int out_op_index = 0; out_op_index < instr->output_ops_cnt; out_op_index++)
     {
-        case OPCODE_ADD:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_SUB:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_AND:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_OR:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_NOT:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_CMP:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_INC:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-        case OPCODE_DEC:
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-            break;
-//        case OPCODE_MOV:
-//            backend->arch_regs->at(instr->code.MOV.r_dst) = result;
+        Operand *out_op = &rob_slot->rs->output_ops[out_op_index];
+        if (out_op->type == OperandType::REGISTER)
+        {
+            // update the architectural register
+            arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
+
+            Phys_Reg &phys_reg = phys_reg_array[out_op->reg];
+            phys_reg.valid = false;
+        }
+    }
+
+
+    // hack to deal with updating the front-end
+    if (instr->opcode == OPCODE_HALT)
+    {
+        frontend->ip_next_fetch = -1;
+    }
+
+//        case OPCODE_STORE:
+//            // write the result to memory
+//            sb->write(instr->output_ops[0].memory_addr, rob_slot->result);
 //            break;
-        case OPCODE_LOAD:
-            // Update the physical register
-            arch_regs[instr->output_ops[0].reg] = rob_slot->result;
-
-
-            //backend->arch_regs->at(instr->code.LOAD.r_dst) = result;
-            break;
-        case OPCODE_STORE:
-            // write the result to memory
-            sb->write(instr->output_ops[0].memory_addr, rob_slot->result);
-            break;
-        case OPCODE_PRINTR:
-            break;
+//        case OPCODE_PRINTR:
+//            break;
 
 //        case OPCODE_JNZ:
 //        {
@@ -304,19 +429,11 @@ void Backend::retire(ROB_Slot *rob_slot)
 ////            }
 //            break;
 //        }
-        case OPCODE_HALT:
-            frontend->ip_next_fetch = -1;
-            break;
-        case OPCODE_NOP:
-            break;
-        default:
-            throw runtime_error("retire:Unrecognized opcode");
-    }
-//
-//
-//    // todo: only when the result is written, the RS is freed.
-//    // the rs can be returned to the pool
-//    rs_free_stack[rs_free_stack_size] = rs_index;
-//    rs_free_stack_size++;
+
+    RS *rs = rob_slot->rs;
+    rs->state = RS_FREE;
+    rs_free_stack[rs_free_stack_size] = rs->rs_index;
+    rs_free_stack_size++;
+    rob_slot->rs = nullptr;
 }
 

@@ -20,9 +20,6 @@
 using namespace std;
 
 
-
-
-
 class CPU;
 
 
@@ -72,8 +69,8 @@ public:
 
     CPU(CPU_Config config)
     {
-        arch_regs = new int [config.arch_reg_cnt];
-        phys_regs = new int [config.phys_reg_cnt];
+        arch_regs = new int[config.arch_reg_cnt];
+        phys_regs = new int[config.phys_reg_cnt];
 
         memory = new vector<int>();
         for (int k = 0; k < config.memory_size; k++)
@@ -101,6 +98,13 @@ public:
         frontend.bubble_remain = 0;
         frontend.instr_queue = &instr_queue;
 
+        backend.phys_reg_array = new Phys_Reg[config.phys_reg_cnt];
+        backend.next_phys_reg = 0;
+        for (int k = 0; k < config.phys_reg_cnt; k++)
+        {
+            backend.phys_reg_array[k].valid = false;
+        }
+
         backend.frontend = &frontend;
         backend.trace = config.trace;
         backend.arch_regs = arch_regs;
@@ -112,9 +116,17 @@ public:
         backend.rob.reserved = 0;
         backend.rob.capacity = config.rob_capacity;
         backend.rob.slots = new ROB_Slot[config.rob_capacity];
-        backend.rat = new unordered_map<uint16_t ,u_int16_t>();
-        backend.eu.backend = &backend;
+        for (int k = 0; k < config.rob_capacity; k++)
+        {
+            ROB_Slot &rob_slot = backend.rob.slots[k];
+            rob_slot.instr = nullptr;
+            rob_slot.rs = nullptr;
+            rob_slot.result = 0;
+            rob_slot.state = ROB_SLOT_FREE;
+        }
 
+        backend.rat = new RAT(config.arch_reg_cnt);
+        backend.eu.backend = &backend;
         backend.rs_count = config.rs_count;
         backend.rs_array = new RS[config.rs_count];
         for (uint16_t k = 0; k < config.rs_count; k++)
@@ -123,6 +135,7 @@ public:
             rs.backend = &backend;
             rs.rs_index = k;
             rs.phys_regs = phys_regs;
+            rs.state = RS_FREE;
         }
         backend.rs_free_stack_size = config.rs_count;
         backend.rs_free_stack = new uint16_t[config.rs_count];

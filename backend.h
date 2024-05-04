@@ -9,16 +9,19 @@
 #include "memory_subsystem.h"
 #include "frontend.h"
 
-enum ROB_Slot_State {
-    ROB_SLOT_NEW,
+enum ROB_Slot_State
+{
+    ROB_SLOT_FREE,
     ROB_SLOT_EXECUTED
 };
+struct RS;
 
 struct ROB_Slot
 {
     Instr *instr;
     int result;
     ROB_Slot_State state;
+    RS *rs;
 };
 
 struct ROB
@@ -38,7 +41,7 @@ struct ROB
     }
 };
 
-struct RS;
+
 struct Backend;
 
 
@@ -55,6 +58,40 @@ struct ExecutionUnit
 };
 
 
+struct RAT_Entry
+{
+    uint16_t phys_reg;
+    // True of this entry is currently in use.
+    bool valid;
+};
+
+// the register alias table used for register renaming
+struct RAT
+{
+    RAT_Entry *entries;
+
+    RAT(int arg_reg_cnt)
+    {
+        entries = new RAT_Entry[arg_reg_cnt];
+        for (int k = 0; k < arg_reg_cnt; k++)
+        {
+            entries[k].phys_reg = k;
+            entries[k].valid = true;
+        }
+    }
+
+    ~RAT()
+    {
+        delete[] entries;
+    }
+};
+
+
+struct Phys_Reg{
+    int value;
+    bool  valid;
+};
+
 /**
  * The Backend is responsible for the actual execution of the instruction.
  *
@@ -62,30 +99,33 @@ struct ExecutionUnit
  */
 struct Backend
 {
+    // the array with the reservation stations
     RS *rs_array;
+    // the number of reservation stations
+    uint16_t rs_count;
 
     // A stack of free RS.
     uint16_t *rs_free_stack;
     uint16_t rs_free_stack_size;
 
+
+
     // A circular queue with RS that are ready to be submitted
     uint16_t *rs_ready_queue;
     uint64_t rs_ready_tail, rs_ready_head;
-    // the register alias table used for register renaming
-    unordered_map<uint16_t ,uint16_t> *rat;
 
     Frontend *frontend;
     // when true, prints every instruction before being executed.
     bool trace;
     int *arch_regs;
-    int *phys_regs;
+    Phys_Reg *phys_reg_array;
     StoreBuffer *sb;
     vector<int> *memory;
     InstrQueue *instr_queue;
     ROB rob;
     ExecutionUnit eu;
-
-    uint16_t rs_count;
+    RAT *rat;
+    int next_phys_reg=0;
 
     void cycle();
 
@@ -102,9 +142,13 @@ struct Backend
     void cycle_dispatch();
 
     void cycle_issue();
+
+    void cdb_broadcast(uint16_t phys_reg, int result);
 };
 
-enum RS_State{
+enum RS_State
+{
+    RS_FREE,
     // The RS is waiting for 1 or more of its src_phys_registers in_operands.
     RS_ISSUED,
     // The RS has all in_operands ready, but not yet submitted
@@ -120,20 +164,19 @@ enum RS_State{
 struct RS
 {
 
-    RS_State state;
+     RS_State state;
 
     uint16_t rs_index;
 
-    // the indices of the physical registers.
-    int src_phys_registers[MAX_INPUT_OPERANDS];
+    Operand input_ops[MAX_INPUT_OPERANDS];
 
-    int dst_phys_reg = -1;
-
-    // number of src_phys_registers in_operands required
+    // number of required operands.
     int input_op_cnt;
 
-    // number of src_phys_registers in_operands available
-    int src_completed_cnt;
+    // the number of operands that are ready
+    int input_opt_ready_cnt;
+
+    Operand output_ops[MAX_OUTPUT_OPERANDS];
 
     ROB_Slot *rob_slot;
 

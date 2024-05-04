@@ -60,7 +60,7 @@ void print_instr(Instr *instr)
             printf("HALT\n");
             break;
         case OPCODE_NOP:
-            printf("NOP\n");
+            //printf("NOP\n");
             break;
         default:
             throw std::runtime_error("print_instr:Unrecognized opcode");

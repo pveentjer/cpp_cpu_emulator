@@ -61,7 +61,7 @@ enum OperandType {
 struct Operand {
     OperandType type;
     union {
-        int reg;
+        uint16_t reg;
         uint64_t memory_addr;
         int constant;
         uint64_t code_addr;

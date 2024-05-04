@@ -7,87 +7,11 @@
 
 void Backend::cycle()
 {
-
-    // retire any instruction that has been executed and hasn't been retired yet.
-    // instructions can execute out of order, but will retire in order.
-    for (uint64_t k = rob.head; k < rob.tail; k++)
-    {
-        ROB_Slot *slot = &rob.slots[k % rob.capacity];
-        if (slot->state == ROB_SLOT_EXECUTED)
-        {
-            printf("Retiring ");
-            print_instr(slot->instr);
-            // todo: retire
-            rob.head++;
-            retire(slot);
-        }
-        else
-        {
-            // As soon as we find an instruction that has not been executed, we stop
-            break;
-        }
-    }
-
-    // issue any rs that has all input_ops ready
-    for (uint64_t k = rs_ready_head; k < rs_ready_tail; k++)
-    {
-        uint16_t rs_index = rs_ready_queue[k % rs_count];
-
-        RS *rs = &rs_array[rs_index];
-        if (trace)
-        {
-            printf("Executing ");
-            print_instr(rs->rob_slot->instr);
-        }
-
-        eu.rs = rs;
-        // loads the values from the physical registers into the input_ops
-        for (int l = 0; k < rs->src_required_cnt; k++)
-        {
-            eu.operands[l] = phys_regs[rs->src_phys_registers[l]];
-        }
-        eu.execute();
-
-        printf("eu.result=%d\n", eu.result);
-
-        rs->rob_slot->result = eu.result;
-        rs->rob_slot->state = ROB_SLOT_EXECUTED;
-//        int result = eu.result;
-//        if (rs->dst_phys_reg > -1)
-//        {
-//            phys_regs[rs->dst_phys_reg] = result;
-//            // and now we need to do the broadcast.
-//        }
-
-        // todo: should become pending once the instruction is queued for an EU
-        rs->state = RS_COMPLETED;
-    }
-    rs_ready_head = rs_ready_tail;
-
-    // Add as many instructions to RS's
-    int unreserved_cnt = rob.tail - rob.reserved;
-    for (int k = 0; k < unreserved_cnt; k++)
-    {
-        if (rs_free_stack_size == 0)
-        {
-            // There are no free reservation stations, so we are done
-            break;
-        }
-
-        // get a free RS
-        rs_free_stack_size--;
-        RS *rs = &rs_array[this->rs_free_stack[rs_free_stack_size]];
-
-        ROB_Slot *slot = &rob.slots[rob.reserved % rob.capacity];
-        rob.reserved++;
-        init_rs(rs, slot);
-
-        if (rs->state == RS_READY)
-        {
-            on_rs_ready(rs);
-        }
-        //print_instr(slot->instr);
-    }
+    cycle_retire();
+    // send for execution units
+    cycle_dispatch();
+    // select reservation stations
+    cycle_issue();
 
     // place instructions from the instruction queue into the rob.
     int cnt = std::min(rob.empty_slots(), instr_queue->size());
@@ -109,73 +33,118 @@ void Backend::cycle()
     }
 }
 
-void Backend::init_rs(RS *rs, ROB_Slot *rob_slot)
-{
-    Instr *instr = rob_slot->instr;
+void Backend::cycle_issue()
+{// Add as many instructions to RS's
+    int unreserved_cnt = rob.tail - rob.reserved;
+    for (int k = 0; k < unreserved_cnt; k++)
+    {
+        if (rs_free_stack_size == 0)
+        {
+            // There are no free reservation stations, so we are done
+            break;
+        }
 
-    switch (instr->opcode)
-    {
-        case OPCODE_ADD:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_SUB:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_AND:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_OR:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_XOR:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_NOT:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_CMP:
-            rs->src_required_cnt = 2;
-            break;
-        case OPCODE_INC:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_DEC:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_MOV:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_LOAD:
-            std::runtime_error("not implemented load");
-            break;
-        case OPCODE_STORE:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_PRINTR:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_JNZ:
-            rs->src_required_cnt = 1;
-            break;
-        case OPCODE_HALT:
-            rs->src_required_cnt = 0;
-            break;
-        case OPCODE_NOP:
-            rs->src_required_cnt = 0;
-            break;
-        default:
-            throw runtime_error("init_rs:Unrecognized opcode");
-    }
+        // get a free RS
+        rs_free_stack_size--;
+        RS *rs = &rs_array[rs_free_stack[rs_free_stack_size]];
 
-    rs->rob_slot = rob_slot;
-    rs->src_completed_cnt = 0;
-    if (rs->src_required_cnt == 0)
-    {
-        rs->state = RS_READY;
+        ROB_Slot *slot = &rob.slots[rob.reserved % rob.capacity];
+        rob.reserved++;
+        rs->input_op_cnt = slot->instr->input_ops_cnt;
+        rs->rob_slot = slot;
+        rs->src_completed_cnt = 0;
+        if (rs->input_op_cnt == 0)
+        {
+            rs->state = RS_READY;
+            on_rs_ready(rs);
+        }
+        else
+        {
+            rs->state = RS_ISSUED;
+        }
+
+        //print_instr(slot->instr);
     }
-    else
+}
+
+void Backend::cycle_dispatch()
+{// issue any rs that has all in_operands ready
+    for (uint64_t k = rs_ready_head; k < rs_ready_tail; k++)
     {
-        rs->state = RS_ISSUED;
+        uint16_t rs_index = rs_ready_queue[k % rs_count];
+
+        RS *rs = &rs_array[rs_index];
+        if (trace)
+        {
+            printf("Executing ");
+            print_instr(rs->rob_slot->instr);
+        }
+
+        eu.rs = rs;
+
+        // prepare the in_operands
+        Instr *instr = rs->rob_slot->instr;
+        for (int op_index = 0; op_index < instr->input_ops_cnt; op_index++)
+        {
+            Operand operand = instr->input_ops[op_index];
+            switch (operand.type)
+            {
+                case REGISTER:
+                    // we loop up the physical register for the architectural register
+                    // and then load the value
+                    //eu.in_operands[op_index].constant =
+                    break;
+                case MEMORY:
+                    eu.in_operands[op_index].memory_addr = operand.memory_addr;
+                    break;
+                case CODE:
+                    eu.in_operands[op_index].code_addr = operand.code_addr;
+                    break;
+                default:
+                    throw runtime_error("Backend::cycle: Unknown operand type");
+            }
+        }
+
+        eu.execute();
+
+        printf("eu.result=%d\n", eu.result);
+
+        rs->rob_slot->result = eu.result;
+        rs->rob_slot->state = ROB_SLOT_EXECUTED;
+
+
+//        int result = eu.result;
+//        if (rs->dst_phys_reg > -1)
+//        {
+//            phys_regs[rs->dst_phys_reg] = result;
+//            // and now we need to do the broadcast.
+//        }
+
+        // todo: should become pending once the instruction is queued for an EU
+        rs->state = RS_COMPLETED;
+    }
+    rs_ready_head = rs_ready_tail;
+}
+
+void Backend::cycle_retire()
+{// retire any instruction that has been executed and hasn't been retired yet.
+// instructions can execute out of order, but will retire in order.
+    for (uint64_t k = rob.head; k < rob.tail; k++)
+    {
+        ROB_Slot *slot = &rob.slots[k % rob.capacity];
+        if (slot->state == ROB_SLOT_EXECUTED)
+        {
+            printf("Retiring ");
+            print_instr(slot->instr);
+            // todo: retire
+            retire(slot);
+            rob.head++;
+        }
+        else
+        {
+            // As soon as we find an instruction that has not been executed, we stop
+            break;
+        }
     }
 }
 
@@ -199,22 +168,22 @@ void ExecutionUnit::execute()
     switch (instr->opcode)
     {
         case OPCODE_ADD:
-            result = operands[0] + operands[1];
+            result = in_operands[0].constant + in_operands[1].constant;
             break;
         case OPCODE_SUB:
-            result = operands[0] - operands[1];
+            result = in_operands[0].constant - in_operands[1].constant;
             break;
         case OPCODE_AND:
-            result = operands[0] & operands[1];
+            result = in_operands[0].constant & in_operands[1].constant;
             break;
         case OPCODE_OR:
-            result = operands[0] | operands[1];
+            result = in_operands[0].constant | in_operands[1].constant;
             break;
         case OPCODE_XOR:
-            result = operands[0] ^ operands[1];
+            result = in_operands[0].constant ^ in_operands[1].constant;
             break;
         case OPCODE_NOT:
-            result = !operands[0];
+            result = !in_operands[0].constant;
             break;
 //        case OPCODE_CMP:
 //        {
@@ -223,10 +192,10 @@ void ExecutionUnit::execute()
 //            break;
 //        }
         case OPCODE_INC:
-            result = operands[0] + 1;
+            result = in_operands[0].constant + 1;
             break;
         case OPCODE_DEC:
-            result = operands[0] - 1;
+            result = in_operands[0].constant - 1;
             break;
 
 //        case OPCODE_MOV:
@@ -240,7 +209,9 @@ void ExecutionUnit::execute()
             // we first need to look there before returning the value otherwise the CPU would
             // not be able to see some of its own writes and become incoherent.
 
-            result = backend->memory->at(instr->input_ops[0].memory_addr);
+            // todo: Load to store forwarding
+
+            result = backend->memory->at(in_operands[0].memory_addr);
 //                    sb->lookup(instr->code.LOAD.m_src)
 //                    .value_or(memory_addr->at(instr->code.LOAD.m_src));
 

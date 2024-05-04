@@ -46,9 +46,9 @@ struct ExecutionUnit
 {
     RS *rs;
     Backend *backend;
-    // the input input_ops
-    int operands[MAX_INPUT_OPERANDS];
-    // the result
+    // the input in_operands
+    Operand in_operands[MAX_INPUT_OPERANDS];
+    // the result: probably this should also be an operand.
     int result;
 
     void execute();
@@ -96,12 +96,18 @@ struct Backend
     void retire(ROB_Slot *rob_slot);
 
     void init_rs(RS *rs, ROB_Slot *rob_slot);
+
+    void cycle_retire();
+
+    void cycle_dispatch();
+
+    void cycle_issue();
 };
 
 enum RS_State{
-    // The RS is waiting for 1 or more of its src_phys_registers input_ops.
+    // The RS is waiting for 1 or more of its src_phys_registers in_operands.
     RS_ISSUED,
-    // The RS has all input_ops ready, but not yet submitted
+    // The RS has all in_operands ready, but not yet submitted
     RS_READY,
     // not used yet; but as soon as we set a queue between the RS and EU, this is needed
     RS_SUBMITTED,
@@ -123,10 +129,10 @@ struct RS
 
     int dst_phys_reg = -1;
 
-    // number of src_phys_registers input_ops required
-    int src_required_cnt;
+    // number of src_phys_registers in_operands required
+    int input_op_cnt;
 
-    // number of src_phys_registers input_ops available
+    // number of src_phys_registers in_operands available
     int src_completed_cnt;
 
     ROB_Slot *rob_slot;

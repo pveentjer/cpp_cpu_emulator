@@ -10,43 +10,51 @@ void print_instr(Instr *instr)
     switch (instr->opcode)
     {
         case OPCODE_ADD:
-            printf("ADD R%d R%d R%d\n", instr->code.ADD.r_dst, instr->code.ADD.r_src1, instr->code.ADD.r_src2);
+            printf("ADD R%d,R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg,
+                   instr->input_ops[1].reg);
             break;
         case OPCODE_SUB:
-            printf("SUB R%d R%d R%d \n", instr->code.SUB.r_dst, instr->code.SUB.r_src1, instr->code.SUB.r_src2);
+            printf("SUB R%d,R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg,
+                   instr->input_ops[1].reg);
             break;
         case OPCODE_AND:
-            printf("AND R%d R%d R%d \n", instr->code.AND.r_dst, instr->code.AND.r_src1, instr->code.AND.r_src2);
+            printf("AND R%d,R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg,
+                   instr->input_ops[1].reg);
             break;
         case OPCODE_OR:
-            printf("OR R%d R%d R%d \n", instr->code.OR.r_dst, instr->code.OR.r_src1, instr->code.OR.r_src2);
+            printf("OR R%d,R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg,
+                   instr->input_ops[1].reg);
+            break;
+        case OPCODE_XOR:
+            printf("XOR R%d,R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg,
+                   instr->input_ops[1].reg);
             break;
         case OPCODE_NOT:
-            printf("NOT R%d R%d \n", instr->code.NOT.r_dst, instr->code.NOT.r_src);
+            printf("NOT R%d,R%d\n", instr->output_ops[0].reg, instr->input_ops[0].reg);
             break;
-        case OPCODE_CMP:
-            printf("CMP R%d R%d %d \n", instr->code.CMP.r_dst, instr->code.CMP.r_src1, instr->code.CMP.r_src2);
-            break;
+//        case OPCODE_CMP:
+//            printf("CMP R%d R%d %d \n", instr->code.CMP.r_dst, instr->code.CMP.r_src1, instr->code.CMP.r_src2);
+//            break;
         case OPCODE_INC:
-            printf("INC R%d \n", instr->code.INC.r_src);
+            printf("INC R%d\n", instr->output_ops[0].reg);
             break;
         case OPCODE_DEC:
-            printf("DEC R%d \n", instr->code.DEC.r_src);
+            printf("DEC R%d\n", instr->output_ops[0].reg);
             break;
         case OPCODE_MOV:
-            printf("MOV R%d R%d\n", instr->code.MOV.r_src, instr->code.MOV.r_dst);
+            printf("MOV R%d R%d\n", instr->input_ops[0].reg, instr->output_ops[0].reg);
             break;
         case OPCODE_LOAD:
-            printf("LOAD R%d %d\n", instr->code.LOAD.r_dst, instr->code.LOAD.m_src);
+            printf("LOAD R%d,[%lu]\n", instr->output_ops[0].reg, instr->input_ops[0].memory_addr);
             break;
         case OPCODE_STORE:
-            printf("STORE R%d %d\n", instr->code.STORE.r_src, instr->code.STORE.m_dst);
+            printf("STORE R%d,[%lu]\n", instr->input_ops[0].reg, instr->output_ops[0].memory_addr);
             break;
         case OPCODE_PRINTR:
-            printf("PRINTR R%d\n", instr->code.PRINTR.r_src);
+            printf("PRINTR R%d\n", instr->input_ops[0].reg);
             break;
         case OPCODE_JNZ:
-            printf("JNZ R%d code[%d]\n", instr->code.JNZ.r_src, instr->code.JNZ.p_target);
+            printf("JNZ R%d code[%lu]\n", instr->input_ops[0].reg, instr->input_ops[1].code_addr);
             break;
         case OPCODE_HALT:
             printf("HALT\n");
@@ -55,7 +63,7 @@ void print_instr(Instr *instr)
             printf("NOP\n");
             break;
         default:
-            throw std::runtime_error("Unrecognized opcode");
+            throw std::runtime_error("print_instr:Unrecognized opcode");
     }
 }
 

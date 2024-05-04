@@ -7,7 +7,8 @@
 #include <map>
 #include <unordered_map>
 
-static const int MAX_SRC_OPERANDS = 3;
+static const int MAX_INPUT_OPERANDS = 3;
+static const int MAX_OUTPUT_OPERANDS = 1;
 
 enum Opcode
 {
@@ -28,7 +29,6 @@ enum Opcode
     OPCODE_MOV,
     OPCODE_NOP
 };
-
 
 bool is_branch(Opcode opcode);
 
@@ -51,74 +51,33 @@ static const std::unordered_map<std::string, Opcode> MNEMONIC_TO_OPCODE = {
         {"NOP",    OPCODE_NOP}
 };
 
+enum OperandType {
+    REGISTER,
+    MEMORY,
+    CODE,
+    CONSTANT,
+};
+
+struct Operand {
+    OperandType type;
+    union {
+        int reg;
+        uint64_t memory_addr;
+        int constant;
+        uint64_t code_addr;
+    };
+};
+
+
 struct Instr
 {
     Opcode opcode;
-    // r_ prefix means it is a register
-    // m_ prefix means it is from memory
-    // p_ prefix means it is an address in the program
-    union
-    {
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } ADD;
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } SUB;
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } AND;
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } OR;
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } XOR;
-        struct
-        {
-            uint32_t r_src, r_dst;
-        } NOT;
-        struct
-        {
-            uint32_t m_src, r_dst;
-        } LOAD;
-        struct
-        {
-            uint32_t r_src, m_dst;
-        } STORE;
-        struct
-        {
-            uint32_t r_src, r_dst;
-        } MOV;
-        struct
-        {
-            uint32_t r_src;
-        } PRINTR;
-        struct
-        {
-            uint32_t r_src;
-        } INC;
-        struct
-        {
-            uint32_t r_src;
-        } DEC;
-        struct
-        {
-        } HALT;
-        struct
-        {
-            uint32_t r_src1, r_src2, r_dst;
-        } CMP;
-        struct
-        {
-            uint32_t r_src, p_target;
-        } JNZ;
-    } code;
+
+    uint16_t input_ops_cnt;
+    Operand input_ops[MAX_INPUT_OPERANDS];
+
+    uint16_t output_ops_cnt;
+    Operand output_ops[MAX_OUTPUT_OPERANDS];
 };
 
 void print_instr(Instr *instr);

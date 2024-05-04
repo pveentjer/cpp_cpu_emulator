@@ -31,12 +31,12 @@ using namespace std;
 struct CPU_Config
 {
     uint32_t cpu_frequency_Hz = 1;
-    // the total available memory in 'ints' the CPU can use.
+    // the total available memory_addr in 'ints' the CPU can use.
     uint32_t memory_size = 16;
     // the number of architectural registers
-    uint16_t arch_reg_count = 16;
+    uint16_t arch_reg_cnt = 16;
     // the number of physical registers
-    uint16_t phys_reg_count = 64;
+    uint16_t phys_reg_cnt = 64;
     // true if every instruction execution should be printed
     bool trace = false;
     // the capacity of the store buffer
@@ -61,8 +61,8 @@ private:
 
 public:
     uint64_t cycles = 0;
-    vector<int> *arch_regs;
-    vector<int> *phys_regs;
+    int *arch_regs;
+    int *phys_regs;
     vector<int> *memory;
     InstrQueue instr_queue;
     StoreBuffer sb;
@@ -72,17 +72,8 @@ public:
 
     CPU(CPU_Config config)
     {
-        arch_regs = new vector<int>();
-        for (int k = 0; k < config.arch_reg_count; k++)
-        {
-            arch_regs->push_back(0);
-        }
-
-        phys_regs = new vector<int>();
-        for (int k = 0; k < config.phys_reg_count; k++)
-        {
-            phys_regs->push_back(0);
-        }
+        arch_regs = new int [config.arch_reg_cnt];
+        phys_regs = new int [config.phys_reg_cnt];
 
         memory = new vector<int>();
         for (int k = 0; k < config.memory_size; k++)
@@ -121,11 +112,8 @@ public:
         backend.rob.reserved = 0;
         backend.rob.capacity = config.rob_capacity;
         backend.rob.slots = new ROB_Slot[config.rob_capacity];
-
-        backend.eu.sb = &sb;
+        backend.rat = new unordered_map<uint16_t ,u_int16_t>();
         backend.eu.backend = &backend;
-        backend.eu.arch_regs = arch_regs;
-        backend.eu.memory = memory;
 
         backend.rs_count = config.rs_count;
         backend.rs_array = new RS[config.rs_count];
@@ -134,6 +122,7 @@ public:
             RS &rs = backend.rs_array[k];
             rs.backend = &backend;
             rs.rs_index = k;
+            rs.phys_regs = phys_regs;
         }
         backend.rs_free_stack_size = config.rs_count;
         backend.rs_free_stack = new uint16_t[config.rs_count];
@@ -148,7 +137,7 @@ public:
     }
 
     /**
-     * Runs the program till completion (including writing the store buffer to memory).
+     * Runs the program till completion (including writing the store buffer to memory_addr).
      */
     void run();
 

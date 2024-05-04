@@ -1,6 +1,5 @@
 TODO
 
-- ip should move to frontend
 
 - program loader: should use R prefix for instructions
 
@@ -12,11 +11,21 @@ TODO
 
 - support speculative execution
 
-- super scalar
+- super scalar (currently just 1 EU)
 
 - out of order execution
 
 DONE
+
+- for register renaming we need to know if a dst arg register is used
+
+- for register renaming we need to know the number of src arch registers
+
+- for register renaming we need to get the src arch registers
+
+- for register renaming we need to get the dst arch registers
+
+- ip should move to frontend
 
 - pipelining
 

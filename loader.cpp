@@ -142,9 +142,15 @@ void load_program(CPU *cpu, string file)
                     int r_src1, r_src2, r_dst;
                     if (iss >> r_dst >> r_src1 >> r_src2)
                     {
-                        instr.code.AND.r_src1 = r_src1;
-                        instr.code.AND.r_src2 = r_src2;
-                        instr.code.ADD.r_dst = r_dst;
+                        instr.input_ops_cnt = 2;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src1;
+                        instr.input_ops[1].type = OperandType::REGISTER;
+                        instr.input_ops[1].reg = r_src2;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -158,9 +164,15 @@ void load_program(CPU *cpu, string file)
                     int r_src1, r_src2, r_dst;
                     if (iss >> r_dst >> r_src1 >> r_src2)
                     {
-                        instr.code.OR.r_src1 = r_src1;
-                        instr.code.OR.r_src2 = r_src2;
-                        instr.code.OR.r_src2 = r_dst;
+                        instr.input_ops_cnt = 2;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src1;
+                        instr.input_ops[1].type = OperandType::REGISTER;
+                        instr.input_ops[1].reg = r_src2;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -174,9 +186,15 @@ void load_program(CPU *cpu, string file)
                     int r_src1, r_src2, r_dst;
                     if (iss >> r_dst >> r_src1 >> r_src2)
                     {
-                        instr.code.XOR.r_src1 = r_src1;
-                        instr.code.XOR.r_src2 = r_src2;
-                        instr.code.XOR.r_src2 = r_dst;
+                        instr.input_ops_cnt = 2;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src1;
+                        instr.input_ops[1].type = OperandType::REGISTER;
+                        instr.input_ops[1].reg = r_src2;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -190,8 +208,13 @@ void load_program(CPU *cpu, string file)
                     int r_src, r_dst;
                     if (iss >> r_dst >> r_src)
                     {
-                        instr.code.NOT.r_src = r_src;
-                        instr.code.NOT.r_dst = r_dst;
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_src;
                     }
                     else
                     {
@@ -205,9 +228,15 @@ void load_program(CPU *cpu, string file)
                     int r_src1, r_src2, r_dst;
                     if (iss >> r_dst >> r_src1 >> r_src2)
                     {
-                        instr.code.ADD.r_src1 = r_src1;
-                        instr.code.ADD.r_src2 = r_src2;
-                        instr.code.ADD.r_dst = r_dst;
+                        instr.input_ops_cnt = 2;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src1;
+                        instr.input_ops[1].type = OperandType::REGISTER;
+                        instr.input_ops[1].reg = r_src2;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -221,9 +250,15 @@ void load_program(CPU *cpu, string file)
                     int r_src1, r_src2, r_dst;
                     if (iss >> r_dst >> r_src1 >> r_src2)
                     {
-                        instr.code.SUB.r_src1 = r_src1;
-                        instr.code.SUB.r_src2 = r_src2;
-                        instr.code.SUB.r_dst = r_dst;
+                        instr.input_ops_cnt = 2;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src1;
+                        instr.input_ops[1].type = OperandType::REGISTER;
+                        instr.input_ops[1].reg = r_src2;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -237,7 +272,13 @@ void load_program(CPU *cpu, string file)
                     int r_src;
                     if (iss >> r_src)
                     {
-                        instr.code.DEC.r_src = r_src;
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_src;
                     }
                     else
                     {
@@ -251,7 +292,13 @@ void load_program(CPU *cpu, string file)
                     int r_src;
                     if (iss >> r_src)
                     {
-                        instr.code.INC.r_src = r_src;
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_src;
                     }
                     else
                     {
@@ -273,8 +320,13 @@ void load_program(CPU *cpu, string file)
                             throw std::runtime_error("Invalid program");
                         }
 
-                        instr.code.LOAD.m_src = variable.value();
-                        instr.code.LOAD.r_dst = r_dst;
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::MEMORY;
+                        instr.input_ops[0].memory_addr = variable.value();
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::REGISTER;
+                        instr.output_ops[0].reg = r_dst;
                     }
                     else
                     {
@@ -296,8 +348,13 @@ void load_program(CPU *cpu, string file)
                             throw std::runtime_error("Invalid STORE");
                         }
 
-                        instr.code.STORE.r_src = r_src;
-                        instr.code.STORE.m_dst = variable.value();
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src;
+
+                        instr.output_ops_cnt = 1;
+                        instr.output_ops[0].type = OperandType::MEMORY;
+                        instr.output_ops[0].memory_addr = variable.value();
                     }
                     else
                     {
@@ -312,11 +369,14 @@ void load_program(CPU *cpu, string file)
                     string label;
                     if (iss >> r_src >> label)
                     {
-                        instr.code.JNZ.r_src = r_src;
                         optional<int> labelAddr = mapGet(labels, label);
                         if (labelAddr.has_value())
                         {
-                            instr.code.JNZ.p_target = labelAddr.value();
+                            instr.input_ops_cnt = 2;
+                            instr.input_ops[0].type = OperandType::REGISTER;
+                            instr.input_ops[0].reg = r_src;
+                            instr.input_ops[1].type = OperandType::CODE;
+                            instr.input_ops[1].code_addr = labelAddr.value();
                         }
                         else
                         {
@@ -334,10 +394,16 @@ void load_program(CPU *cpu, string file)
                 }
                 case OPCODE_PRINTR:
                 {
+
+
                     int r_src;
                     if (iss >> r_src)
                     {
-                        instr.code.PRINTR.r_src = r_src;
+                        instr.input_ops_cnt = 1;
+                        instr.input_ops[0].type = OperandType::REGISTER;
+                        instr.input_ops[0].reg = r_src;
+
+                        instr.output_ops_cnt = 0;
                     }
                     else
                     {
@@ -347,12 +413,15 @@ void load_program(CPU *cpu, string file)
                     break;
                 }
                 case OPCODE_HALT:
+                    instr.input_ops_cnt = 0;
+                    instr.output_ops_cnt = 0;
                     break;
                 case OPCODE_NOP:
+                    instr.input_ops_cnt = 0;
+                    instr.output_ops_cnt = 0;
                     break;
 
                     // todo: not all opcodes are handled.
-
             }
 
             cpu->frontend.code->push_back(instr);

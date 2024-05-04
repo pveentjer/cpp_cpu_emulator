@@ -7,7 +7,7 @@ int main()
     config->trace = true;
     config->cpu_frequency_Hz = 10;
     config->memory_size = 16;
-    config->arch_reg_count = 16;
+    config->arch_reg_cnt = 16;
     config->sb_capacity = 4;
     config->rs_count = 16;
     CPU *cpu = new CPU(*config);

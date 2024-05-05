@@ -113,7 +113,6 @@ public:
         backend.instr_queue = &instr_queue;
         backend.rob = new ROB(config.rob_capacity);
 
-
         backend.rat = new RAT(config.arch_reg_cnt);
         backend.eu.backend = &backend;
         backend.rs_table = new RS_Table(config.rs_count);

@@ -93,17 +93,19 @@ struct InstrQueue
     uint64_t head = 0;
     uint64_t tail = 0;
 
-    bool is_empty() const
+
+
+    [[nodiscard]] bool is_empty() const
     {
         return head == tail;
     }
 
-    uint16_t size() const
+    [[nodiscard]] uint16_t size() const
     {
         return tail - head;
     }
 
-    bool is_full() const
+    [[nodiscard]] bool is_full() const
     {
         return size() == capacity;
     }

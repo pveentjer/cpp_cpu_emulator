@@ -38,15 +38,14 @@ void Backend::cycle_issue()
     int unreserved_cnt = rob->tail - rob->reserved;
     for (int k = 0; k < unreserved_cnt; k++)
     {
-        if (rs_table->rs_free_stack_size == 0)
+        optional<RS *> allocation = rs_table->allocate();
+        if (!allocation.has_value())
         {
             // There are no free reservation stations, so we are done
             break;
         }
 
-        // get a free RS
-        rs_table->rs_free_stack_size--;
-        RS *rs = &rs_table->rs_array[rs_table->rs_free_stack[rs_table->rs_free_stack_size]];
+        RS *rs = allocation.value();
 
         ROB_Slot *rob_slot = &rob->slots[rob->reserved % rob->capacity];
         rob_slot->rs = rs;
@@ -170,11 +169,11 @@ void Backend::cycle_issue()
 // The dispatch: so sending ready reservation stations to execution units.
 void Backend::cycle_dispatch()
 {// issue any rs that has all in_operands ready
-    for (uint64_t k = rs_table->rs_ready_head; k < rs_table->rs_ready_tail; k++)
+    for (uint64_t k = rs_table->ready_head; k < rs_table->ready_tail; k++)
     {
-        uint16_t rs_index = rs_table->rs_ready_queue[k % rs_table->rs_count];
+        uint16_t rs_index = rs_table->ready_queue[k % rs_table->count];
 
-        RS *rs = &rs_table->rs_array[rs_index];
+        RS *rs = &rs_table->array[rs_index];
         if (trace)
         {
             printf("Dispatch (execute) ");
@@ -238,16 +237,16 @@ void Backend::cycle_dispatch()
 
         // should the phys register be invalidated here?
     }
-    rs_table->rs_ready_head = rs_table->rs_ready_tail;
+    rs_table->ready_head = rs_table->ready_tail;
 }
 
 void Backend::cdb_broadcast(uint16_t phys_reg, int result)
 {// broadcast the value.
 // Iterate over all RS that are in RS_ISSUED (so waiting)
 
-    for (int k = 0; k < rs_table->rs_count; k++)
+    for (int k = 0; k < rs_table->count; k++)
     {
-        RS *rs = &rs_table->rs_array[k];
+        RS *rs = &rs_table->array[k];
 
         if (rs->state != RS_ISSUED)
         {
@@ -308,9 +307,9 @@ bool Backend::is_idle()
 
 void Backend::on_rs_ready(RS *rs)
 {
-    uint64_t index = rs_table->rs_ready_tail % rs_table->rs_count;
-    rs_table->rs_ready_queue[index] = rs->rs_index;
-    rs_table->rs_ready_tail++;
+    uint64_t index = rs_table->ready_tail % rs_table->count;
+    rs_table->ready_queue[index] = rs->rs_index;
+    rs_table->ready_tail++;
 }
 
 void ExecutionUnit::execute()
@@ -341,7 +340,7 @@ void ExecutionUnit::execute()
 //        case OPCODE_CMP:
 //        {
 //            int res = src[0] == src[1];
-//            //rs_array[rs_target].srcReady(rs_src_index, res);
+//            //array[rs_target].srcReady(rs_src_index, res);
 //            break;
 //        }
         case OPCODE_INC:
@@ -447,10 +446,9 @@ void Backend::retire(ROB_Slot *rob_slot)
 //        }
 
     RS *rs = rob_slot->rs;
-    rs->state = RS_FREE;
-    rs_table->rs_free_stack[rs_table->rs_free_stack_size] = rs->rs_index;
-    rs_table->rs_free_stack_size++;
     rob_slot->rs = nullptr;
+
+    rs_table->deallocate(rs);
 }
 
 uint16_t Phys_Reg_File::allocate()

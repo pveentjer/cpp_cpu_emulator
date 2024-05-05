@@ -1,6 +1,8 @@
 TODO
 
-- add RS_Table
+- instruction queue should have constructor
+
+- should RS_Table be called RST (T stands for Table; just like RAT)
 
 - when printing cycle progress, add the cycle as prefix
 
@@ -20,9 +22,13 @@ TODO
 
 - super scalar (currently just 1 EU)
 
+DONE
+
+- rs free stack logic should be moved into RS_Table
+
 - out of order execution
 
-DONE
+- add RS_Table
 
 - add ROB constructor/destructor
 

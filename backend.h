@@ -33,7 +33,8 @@ struct ROB
     ROB_Slot *slots;
 
 
-    ROB(uint16_t capacity):capacity(capacity){
+    ROB(uint16_t capacity) : capacity(capacity)
+    {
         head = 0;
         tail = 0;
         reserved = 0;
@@ -48,7 +49,8 @@ struct ROB
         }
     }
 
-    ~ROB(){
+    ~ROB()
+    {
         delete[] slots;
     }
 
@@ -140,7 +142,8 @@ struct Phys_Reg_File
         }
     }
 
-    ~Phys_Reg_File(){
+    ~Phys_Reg_File()
+    {
         delete[] array;
         delete[] free_stack;
     }
@@ -159,7 +162,6 @@ struct Phys_Reg_File
      */
     void deallocate(uint16_t phys_reg);
 };
-
 
 
 /**
@@ -234,44 +236,76 @@ struct RS
     ROB_Slot *rob_slot;
 };
 
-struct RS_Table{
+struct RS_Table
+{
     // the array with the reservation stations
-    RS *rs_array;
+    RS *array;
     // the number of reservation stations
-    uint16_t rs_count;
+    uint16_t count;
 
     // A stack of free RS.
-    uint16_t *rs_free_stack;
-    uint16_t rs_free_stack_size;
+    uint16_t *free_stack;
+    uint16_t free_stack_size;
 
     // A circular queue with RS that are ready to be submitted
-    uint16_t *rs_ready_queue;
-    uint64_t rs_ready_tail, rs_ready_head;
+    uint16_t *ready_queue;
+    uint64_t ready_tail, ready_head;
 
-    RS_Table(int rs_count):rs_count(rs_count){
-        rs_array = new RS[rs_count];
+    RS_Table(uint16_t rs_count) : count(rs_count)
+    {
+        array = new RS[rs_count];
         for (uint16_t k = 0; k < rs_count; k++)
         {
-            RS &rs = rs_array[k];
+            RS &rs = array[k];
             rs.rs_index = k;
             rs.state = RS_FREE;
         }
-        rs_free_stack_size = rs_count;
-        rs_free_stack = new uint16_t[rs_count];
+        free_stack_size = rs_count;
+        free_stack = new uint16_t[rs_count];
         for (uint16_t k = 0; k < rs_count; k++)
         {
-            rs_free_stack[k] = k;
+            free_stack[k] = k;
         }
 
-        rs_ready_head = 0;
-        rs_ready_tail = 0;
-        rs_ready_queue = new uint16_t[rs_count];
+        ready_head = 0;
+        ready_tail = 0;
+        ready_queue = new uint16_t[rs_count];
     }
 
-    ~RS_Table(){
-        delete[] rs_free_stack;
-        delete[] rs_array;
-        delete[] rs_ready_queue;
+    ~RS_Table()
+    {
+        delete[] free_stack;
+        delete[] array;
+        delete[] ready_queue;
     }
+
+    optional<RS *> allocate()
+    {
+        if (free_stack_size == 0)
+        {
+            // There are no free reservation stations, so we are done
+            return nullopt;
+        }
+
+        // get a free RS
+        free_stack_size--;
+        return &array[free_stack[free_stack_size]];
+    }
+
+    void deallocate(RS *rs)
+    {
+        if (free_stack_size == count)
+        {
+            throw std::runtime_error("RS_Table: too many frees");
+        }
+
+        rs->state = RS_FREE;
+        rs->rob_slot = nullptr;
+        rs->input_opt_ready_cnt = 0;
+        free_stack[free_stack_size] = rs->rs_index;
+        free_stack_size++;
+    }
+
 };
+
 #endif //CPU_EMULATOR_BACKEND_H

@@ -16,16 +16,16 @@ void Backend::cycle()
     cycle_issue();
 
     // place instructions from the instruction queue into the rob.
-    int cnt = std::min(rob.empty_slots(), instr_queue->size());
+    int cnt = std::min(rob->empty_slots(), instr_queue->size());
     for (int k = 0; k < cnt; k++)
     {
         Instr *instr = instr_queue->dequeue();
         //print_instr(instr);
-        uint64_t i = rob.tail % rob.capacity;
-        ROB_Slot *slot = &rob.slots[i];
+        uint64_t i = rob->tail % rob->capacity;
+        ROB_Slot *slot = &rob->slots[i];
         slot->instr = instr;
         slot->state = ROB_SLOT_FREE;
-        rob.tail++;
+        rob->tail++;
 
         //printf("Inserting into ROB ");
         //print_instr(slot->instr);
@@ -35,23 +35,23 @@ void Backend::cycle()
 // Add as many instructions to RS's
 void Backend::cycle_issue()
 {
-    int unreserved_cnt = rob.tail - rob.reserved;
+    int unreserved_cnt = rob->tail - rob->reserved;
     for (int k = 0; k < unreserved_cnt; k++)
     {
-        if (rs_free_stack_size == 0)
+        if (rs_table->rs_free_stack_size == 0)
         {
             // There are no free reservation stations, so we are done
             break;
         }
 
         // get a free RS
-        rs_free_stack_size--;
-        RS *rs = &rs_array[rs_free_stack[rs_free_stack_size]];
+        rs_table->rs_free_stack_size--;
+        RS *rs = &rs_table->rs_array[rs_table->rs_free_stack[rs_table->rs_free_stack_size]];
 
-        ROB_Slot *rob_slot = &rob.slots[rob.reserved % rob.capacity];
+        ROB_Slot *rob_slot = &rob->slots[rob->reserved % rob->capacity];
         rob_slot->rs = rs;
 
-        rob.reserved++;
+        rob->reserved++;
         Instr *instr = rob_slot->instr;
         rs->rob_slot = rob_slot;
 
@@ -75,7 +75,7 @@ void Backend::cycle_issue()
                     {
                         // we need to use the physical register for the value
                         Phys_Reg_Slot *phys_reg = &phys_reg_file->array[rat_entry->phys_reg];
-                        if (phys_reg->valid)
+                        if (phys_reg->has_value)
                         {
                             // the physical register has the value, so use that
                             input_op_rs->type = OperandType::CONSTANT;
@@ -170,11 +170,11 @@ void Backend::cycle_issue()
 // The dispatch: so sending ready reservation stations to execution units.
 void Backend::cycle_dispatch()
 {// issue any rs that has all in_operands ready
-    for (uint64_t k = rs_ready_head; k < rs_ready_tail; k++)
+    for (uint64_t k = rs_table->rs_ready_head; k < rs_table->rs_ready_tail; k++)
     {
-        uint16_t rs_index = rs_ready_queue[k % rs_count];
+        uint16_t rs_index = rs_table->rs_ready_queue[k % rs_table->rs_count];
 
-        RS *rs = &rs_array[rs_index];
+        RS *rs = &rs_table->rs_array[rs_index];
         if (trace)
         {
             printf("Dispatch (execute) ");
@@ -228,7 +228,7 @@ void Backend::cycle_dispatch()
             {
                 // update the physical register.
                 Phys_Reg_Slot *phys_reg = &phys_reg_file->array[out_op->reg];
-                phys_reg->valid = true;
+                phys_reg->has_value = true;
                 phys_reg->value = result;
 
                 // Broadcast the value to any RS that needs it.
@@ -238,16 +238,16 @@ void Backend::cycle_dispatch()
 
         // should the phys register be invalidated here?
     }
-    rs_ready_head = rs_ready_tail;
+    rs_table->rs_ready_head = rs_table->rs_ready_tail;
 }
 
 void Backend::cdb_broadcast(uint16_t phys_reg, int result)
 {// broadcast the value.
 // Iterate over all RS that are in RS_ISSUED (so waiting)
 
-    for (int k = 0; k < rs_count; k++)
+    for (int k = 0; k < rs_table->rs_count; k++)
     {
-        RS *rs = &rs_array[k];
+        RS *rs = &rs_table->rs_array[k];
 
         if (rs->state != RS_ISSUED)
         {
@@ -281,18 +281,17 @@ void Backend::cdb_broadcast(uint16_t phys_reg, int result)
 void Backend::cycle_retire()
 {// retire any instruction that has been executed and hasn't been retired yet.
 // instructions can execute out of order, but will retire in order.
-    for (uint64_t k = rob.head; k < rob.tail; k++)
+    for (uint64_t k = rob->head; k < rob->tail; k++)
     {
-        ROB_Slot *slot = &rob.slots[k % rob.capacity];
+        ROB_Slot *slot = &rob->slots[k % rob->capacity];
         if (slot->state == ROB_SLOT_EXECUTED)
         {
             printf("Retiring ");
             print_instr(slot->instr);
 
-
             // todo: retire
             retire(slot);
-            rob.head++;
+            rob->head++;
         }
         else
         {
@@ -304,14 +303,14 @@ void Backend::cycle_retire()
 
 bool Backend::is_idle()
 {
-    return rob.size() == 0;
+    return rob->size() == 0;
 }
 
 void Backend::on_rs_ready(RS *rs)
 {
-    uint64_t index = rs_ready_tail % rs_count;
-    rs_ready_queue[index] = rs->rs_index;
-    rs_ready_tail++;
+    uint64_t index = rs_table->rs_ready_tail % rs_table->rs_count;
+    rs_table->rs_ready_queue[index] = rs->rs_index;
+    rs_table->rs_ready_tail++;
 }
 
 void ExecutionUnit::execute()
@@ -419,7 +418,7 @@ void Backend::retire(ROB_Slot *rob_slot)
         {
             // update the architectural register
             arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
-            phys_reg_file->free(out_op->reg);
+            phys_reg_file->deallocate(out_op->reg);
         }
     }
 
@@ -449,8 +448,35 @@ void Backend::retire(ROB_Slot *rob_slot)
 
     RS *rs = rob_slot->rs;
     rs->state = RS_FREE;
-    rs_free_stack[rs_free_stack_size] = rs->rs_index;
-    rs_free_stack_size++;
+    rs_table->rs_free_stack[rs_table->rs_free_stack_size] = rs->rs_index;
+    rs_table->rs_free_stack_size++;
     rob_slot->rs = nullptr;
 }
 
+uint16_t Phys_Reg_File::allocate()
+{
+    if (free_stack_size == 0)
+    {
+        throw std::runtime_error("Phys_Reg_File.allocate: There are no free physical registers.");
+    }
+
+    // get a free physical register.
+    free_stack_size--;
+    return free_stack[free_stack_size];
+}
+
+void Phys_Reg_File::deallocate(uint16_t phys_reg)
+{
+    if (free_stack_size == count)
+    {
+        throw std::runtime_error("Phys_Reg_File:Free: Too many deallocates.");
+    }
+
+    // invalidate the physical register
+    Phys_Reg_Slot &slot = array[phys_reg];
+    slot.has_value = false;
+
+    // return the physical register to the free stack
+    free_stack[free_stack_size] = phys_reg;
+    free_stack_size++;
+}

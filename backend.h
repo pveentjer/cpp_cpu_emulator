@@ -14,7 +14,9 @@ enum ROB_Slot_State
     ROB_SLOT_FREE,
     ROB_SLOT_EXECUTED
 };
+
 struct RS;
+struct RS_Table;
 
 struct ROB_Slot
 {
@@ -29,6 +31,26 @@ struct ROB
     uint64_t head, tail, reserved;
     uint16_t capacity;
     ROB_Slot *slots;
+
+
+    ROB(uint16_t capacity):capacity(capacity){
+        head = 0;
+        tail = 0;
+        reserved = 0;
+        slots = new ROB_Slot[capacity];
+        for (int k = 0; k < capacity; k++)
+        {
+            ROB_Slot &rob_slot = slots[k];
+            rob_slot.instr = nullptr;
+            rob_slot.rs = nullptr;
+            rob_slot.result = 0;
+            rob_slot.state = ROB_SLOT_FREE;
+        }
+    }
+
+    ~ROB(){
+        delete[] slots;
+    }
 
     uint16_t empty_slots()
     {
@@ -89,20 +111,21 @@ struct RAT
 
 struct Phys_Reg_Slot
 {
-    uint16_t id;
     int value;
-    bool valid;
+    bool has_value;
 };
 
 struct Phys_Reg_File
 {
+    uint16_t count;
     Phys_Reg_Slot *array;
-    int *free_stack;
+    uint16_t *free_stack;
     uint16_t free_stack_size;
 
-    Phys_Reg_File(int phys_reg_count)
+    Phys_Reg_File(uint16_t phys_reg_count)
     {
-        free_stack = new int[phys_reg_count];
+        count = phys_reg_count;
+        free_stack = new uint16_t[phys_reg_count];
         for (uint16_t k = 0; k < phys_reg_count; k++)
         {
             free_stack[k] = k;
@@ -113,35 +136,31 @@ struct Phys_Reg_File
         {
             Phys_Reg_Slot &phys_reg = array[k];
             phys_reg.value = 0;
-            phys_reg.valid = false;
-            phys_reg.id = k;
+            phys_reg.has_value = false;
         }
     }
 
-
-    uint16_t allocate()
-    {
-        if (free_stack_size == 0)
-        {
-            throw std::runtime_error("there are no more physical registers");
-        }
-
-        // get a free physical register.
-        free_stack_size--;
-        return free_stack[free_stack_size];
+    ~Phys_Reg_File(){
+        delete[] array;
+        delete[] free_stack;
     }
 
-    void free(uint16_t phys_reg)
-    {
-        // invalidate the physical register
-        Phys_Reg_Slot &slot = array[phys_reg];
-        slot.valid = false;
+    /**
+     * Allocates a physical register.
+     *
+     * @return the physical register.
+     */
+    uint16_t allocate();
 
-        // return the physical register to the free stack
-        free_stack[free_stack_size] = phys_reg;
-        free_stack_size++;
-    }
+    /**
+     * Deallocates a physical register.
+     *
+     * @param phys_reg the physical register to deallocate.
+     */
+    void deallocate(uint16_t phys_reg);
 };
+
+
 
 /**
  * The Backend is responsible for the actual execution of the instruction.
@@ -150,20 +169,7 @@ struct Phys_Reg_File
  */
 struct Backend
 {
-    // the array with the reservation stations
-    RS *rs_array;
-    // the number of reservation stations
-    uint16_t rs_count;
-
-    // A stack of free RS.
-    uint16_t *rs_free_stack;
-    uint16_t rs_free_stack_size;
-
-
-    // A circular queue with RS that are ready to be submitted
-    uint16_t *rs_ready_queue;
-    uint64_t rs_ready_tail, rs_ready_head;
-
+    RS_Table *rs_table;
     Frontend *frontend;
     // when true, prints every instruction before being executed.
     bool trace;
@@ -171,7 +177,7 @@ struct Backend
     StoreBuffer *sb;
     vector<int> *memory;
     InstrQueue *instr_queue;
-    ROB rob;
+    ROB *rob;
     ExecutionUnit eu;
     RAT *rat;
     Phys_Reg_File *phys_reg_file;
@@ -183,9 +189,6 @@ struct Backend
     void on_rs_ready(RS *rs);
 
     void retire(ROB_Slot *rob_slot);
-
-    // todo: remove?
-    void init_rs(RS *rs, ROB_Slot *rob_slot);
 
     void cycle_retire();
 
@@ -210,7 +213,6 @@ enum RS_State
     RS_COMPLETED,
 };
 
-// todo: there could be multiple dependend rs waiting for the result of this RS
 // A reservation station
 struct RS
 {
@@ -230,5 +232,46 @@ struct RS
     Operand output_ops[MAX_OUTPUT_OPERANDS];
 
     ROB_Slot *rob_slot;
+};
+
+struct RS_Table{
+    // the array with the reservation stations
+    RS *rs_array;
+    // the number of reservation stations
+    uint16_t rs_count;
+
+    // A stack of free RS.
+    uint16_t *rs_free_stack;
+    uint16_t rs_free_stack_size;
+
+    // A circular queue with RS that are ready to be submitted
+    uint16_t *rs_ready_queue;
+    uint64_t rs_ready_tail, rs_ready_head;
+
+    RS_Table(int rs_count):rs_count(rs_count){
+        rs_array = new RS[rs_count];
+        for (uint16_t k = 0; k < rs_count; k++)
+        {
+            RS &rs = rs_array[k];
+            rs.rs_index = k;
+            rs.state = RS_FREE;
+        }
+        rs_free_stack_size = rs_count;
+        rs_free_stack = new uint16_t[rs_count];
+        for (uint16_t k = 0; k < rs_count; k++)
+        {
+            rs_free_stack[k] = k;
+        }
+
+        rs_ready_head = 0;
+        rs_ready_tail = 0;
+        rs_ready_queue = new uint16_t[rs_count];
+    }
+
+    ~RS_Table(){
+        delete[] rs_free_stack;
+        delete[] rs_array;
+        delete[] rs_ready_queue;
+    }
 };
 #endif //CPU_EMULATOR_BACKEND_H

@@ -111,40 +111,12 @@ public:
         backend.sb = &sb;
         backend.memory = memory;
         backend.instr_queue = &instr_queue;
-        backend.rob.head = 0;
-        backend.rob.tail = 0;
-        backend.rob.reserved = 0;
-        backend.rob.capacity = config.rob_capacity;
-        backend.rob.slots = new ROB_Slot[config.rob_capacity];
-        for (int k = 0; k < config.rob_capacity; k++)
-        {
-            ROB_Slot &rob_slot = backend.rob.slots[k];
-            rob_slot.instr = nullptr;
-            rob_slot.rs = nullptr;
-            rob_slot.result = 0;
-            rob_slot.state = ROB_SLOT_FREE;
-        }
+        backend.rob = new ROB(config.rob_capacity);
+
 
         backend.rat = new RAT(config.arch_reg_cnt);
         backend.eu.backend = &backend;
-        backend.rs_count = config.rs_count;
-        backend.rs_array = new RS[config.rs_count];
-        for (uint16_t k = 0; k < config.rs_count; k++)
-        {
-            RS &rs = backend.rs_array[k];
-            rs.rs_index = k;
-            rs.state = RS_FREE;
-        }
-        backend.rs_free_stack_size = config.rs_count;
-        backend.rs_free_stack = new uint16_t[config.rs_count];
-        for (uint16_t k = 0; k < config.rs_count; k++)
-        {
-            backend.rs_free_stack[k] = k;
-        }
-
-        backend.rs_ready_head = 0;
-        backend.rs_ready_tail = 0;
-        backend.rs_ready_queue = new uint16_t[config.rs_count];
+        backend.rs_table = new RS_Table(config.rs_count);
     }
 
     /**

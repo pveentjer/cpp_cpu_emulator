@@ -1,5 +1,7 @@
 TODO
 
+- add RS_Table
+
 - when printing cycle progress, add the cycle as prefix
 
 - the solution with the NOPs to deal with HALT or a branch is not going to work if
@@ -21,5 +23,7 @@ TODO
 - out of order execution
 
 DONE
+
+- add ROB constructor/destructor
 
 - proper finding of a usable physical register.

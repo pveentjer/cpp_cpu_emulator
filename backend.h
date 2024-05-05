@@ -87,9 +87,11 @@ struct RAT
 };
 
 
-struct Phys_Reg{
+struct Phys_Reg
+{
+    uint16_t id;
     int value;
-    bool  valid;
+    bool valid;
 };
 
 /**
@@ -109,7 +111,6 @@ struct Backend
     uint16_t rs_free_stack_size;
 
 
-
     // A circular queue with RS that are ready to be submitted
     uint16_t *rs_ready_queue;
     uint64_t rs_ready_tail, rs_ready_head;
@@ -118,14 +119,17 @@ struct Backend
     // when true, prints every instruction before being executed.
     bool trace;
     int *arch_regs;
-    Phys_Reg *phys_reg_array;
     StoreBuffer *sb;
     vector<int> *memory;
     InstrQueue *instr_queue;
     ROB rob;
     ExecutionUnit eu;
     RAT *rat;
-    int next_phys_reg=0;
+
+    Phys_Reg *phys_reg_array;
+    int *phys_reg_free_stack;
+    uint16_t phys_reg_free_stack_size;
+
 
     void cycle();
 
@@ -144,6 +148,8 @@ struct Backend
     void cycle_issue();
 
     void cdb_broadcast(uint16_t phys_reg, int result);
+
+
 };
 
 enum RS_State
@@ -164,7 +170,7 @@ enum RS_State
 struct RS
 {
 
-     RS_State state;
+    RS_State state;
 
     uint16_t rs_index;
 

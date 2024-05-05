@@ -103,13 +103,18 @@ public:
         frontend.bubble_remain = 0;
         frontend.instr_queue = &instr_queue;
 
+        backend.phys_reg_free_stack = new int[config.phys_reg_cnt];
+        for(uint16_t k=0;k<config.phys_reg_cnt;k++){
+            backend.phys_reg_free_stack[k]=k;
+        }
+        backend.phys_reg_free_stack_size = config.phys_reg_cnt;
         backend.phys_reg_array = new Phys_Reg[config.phys_reg_cnt];
-        backend.next_phys_reg = 0;
         for (int k = 0; k < config.phys_reg_cnt; k++)
         {
             Phys_Reg &phys_reg = backend.phys_reg_array[k];
             phys_reg.value = 0;
             phys_reg.valid = false;
+            phys_reg.id = k;
         }
 
         backend.frontend = &frontend;

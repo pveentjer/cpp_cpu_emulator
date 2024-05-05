@@ -70,7 +70,7 @@ void Backend::cycle_issue()
                     // if the architectural register should be used.
                     uint16_t arch_reg = input_op_instr->reg;
                     RAT_Entry *rat_entry = &rat->entries[arch_reg];
-                    
+
                     if (rat_entry->valid)
                     {
                         // we need to use the physical register for the value
@@ -130,8 +130,14 @@ void Backend::cycle_issue()
             {
                 case OperandType::REGISTER:
                 {
-                    uint16_t phys_reg = next_phys_reg;
-                    next_phys_reg++;
+                    if(phys_reg_free_stack_size == 0){
+                        throw std::runtime_error("there are no more physical registers");
+                    }
+
+                    // get a free physical register.
+                    phys_reg_free_stack_size--;
+                    uint16_t phys_reg = phys_reg_free_stack[phys_reg_free_stack_size];
+
                     rat->entries[output_op_instr->reg].phys_reg = phys_reg;
                     output_op_rs->reg = phys_reg;
                     printf("Register rename from %d to %d\n", output_op_instr->reg, output_op_rs->reg);
@@ -420,8 +426,13 @@ void Backend::retire(ROB_Slot *rob_slot)
             // update the architectural register
             arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
 
+            // invalidate the physical register
             Phys_Reg &phys_reg = phys_reg_array[out_op->reg];
             phys_reg.valid = false;
+
+            // return the physical register to the free stack
+            phys_reg_free_stack[phys_reg_free_stack_size] = phys_reg.id;
+            phys_reg_free_stack_size++;
         }
     }
 

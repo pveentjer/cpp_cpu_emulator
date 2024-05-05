@@ -179,9 +179,5 @@ struct RS
     Operand output_ops[MAX_OUTPUT_OPERANDS];
 
     ROB_Slot *rob_slot;
-
-    Backend *backend;
-
-    int *phys_regs;
 };
 #endif //CPU_EMULATOR_BACKEND_H

@@ -17,6 +17,7 @@ using namespace std;
  */
 struct Frontend
 {
+    uint8_t n_wide;
     vector<Instr> *code;
     uint8_t bubble_remain;
     int32_t ip_next_fetch = -1;

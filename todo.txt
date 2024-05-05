@@ -1,5 +1,12 @@
 TODO
 
+- when printing cycle progress, add the cycle as prefix
+
+- proper finding of a usable physical register.
+
+- the solution with the NOPs to deal with HALT or a branch is not going to work if
+  the latency to get an instruction through the pipeline is larger than the pipeline
+  depth.
 
 - program loader: should use R prefix for instructions
 
@@ -17,28 +24,3 @@ TODO
 
 DONE
 
-- for register renaming we need to know if a dst arg register is used
-
-- for register renaming we need to know the number of src arch registers
-
-- for register renaming we need to get the src arch registers
-
-- for register renaming we need to get the dst arch registers
-
-- ip should move to frontend
-
-- pipelining
-
-- program loader: should support variables
-
-- program loader: should support labels
-
-- program loader: should support comments
-
-- instruction print should add R prefix for registers.
-
-- program loader. Current way to load a program is a pain
-
-- store buffer
-
-- stlf: currently a load will miss the store in the store buffer

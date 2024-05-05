@@ -62,38 +62,56 @@ void Backend::cycle_issue()
         {
             Operand *input_op_instr = &instr->input_ops[l];
             Operand *input_op_rs = &rs->input_ops[l];
-            input_op_rs->type = input_op_instr->type;
             switch (input_op_instr->type)
             {
                 case OperandType::REGISTER:
                 {
-                    Phys_Reg *phys_reg = &phys_reg_array[input_op_instr->reg];
-                    if (phys_reg->valid)
+                    // The rat_entry will determine if there is a physical register we should use or
+                    // if the architectural register should be used.
+                    uint16_t arch_reg = input_op_instr->reg;
+                    RAT_Entry *rat_entry = &rat->entries[arch_reg];
+                    
+                    if (rat_entry->valid)
                     {
-                        input_op_rs->type = OperandType::CONSTANT;
-                        input_op_rs->constant = phys_reg->value;
-                        rs->input_opt_ready_cnt++;
+                        // we need to use the physical register for the value
+                        Phys_Reg *phys_reg = &phys_reg_array[rat_entry->phys_reg];
+                        if (phys_reg->valid)
+                        {
+                            // the physical register has the value, so use that
+                            input_op_rs->type = OperandType::CONSTANT;
+                            input_op_rs->constant = phys_reg->value;
+                            rs->input_opt_ready_cnt++;
+                        }
+                        else
+                        {
+                            // the physical register doesn't have the value.
+                            // the broadcast on the cdb will take care of setting the value
+                            input_op_rs->reg = rat_entry->phys_reg;
+                            input_op_rs->type = REGISTER;
+                        }
                     }
                     else
                     {
-                        RAT_Entry *rat_entry = &rat->entries[input_op_instr->reg];
-                        if (!rat_entry->valid)
-                        {
-                            throw std::runtime_error("Invalid rat_entry");
-                        }
-                        input_op_rs->reg = rat_entry->phys_reg;
+                        // there is no physical register, so we use the value in the architectural register
+                        input_op_rs->type = OperandType::CONSTANT;
+                        input_op_rs->constant = arch_regs[arch_reg];
+                        rs->input_opt_ready_cnt++;
                     }
+
                     break;
                 }
                 case OperandType::CODE:
+                    input_op_rs->type = CONSTANT;
                     input_op_rs->code_addr = input_op_instr->code_addr;
                     rs->input_opt_ready_cnt++;
                     break;
                 case OperandType::CONSTANT:
+                    input_op_rs->type = CONSTANT;
                     input_op_rs->constant = input_op_instr->constant;
                     rs->input_opt_ready_cnt++;
                     break;
                 case OperandType::MEMORY:
+                    input_op_rs->type = MEMORY;
                     input_op_rs->memory_addr = input_op_instr->memory_addr;
                     rs->input_opt_ready_cnt++;
                     break;
@@ -139,7 +157,8 @@ void Backend::cycle_issue()
             on_rs_ready(rs);
         }
         else
-        {printf("Issue ISSUED ");
+        {
+            printf("Issue ISSUED ");
             print_instr(rs->rob_slot->instr);
             rs->state = RS_ISSUED;
         }

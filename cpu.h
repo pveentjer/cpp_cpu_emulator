@@ -29,9 +29,9 @@ struct CPU_Config
 {
     uint32_t cpu_frequency_Hz = 1;
     // the total available memory_addr in 'ints' the CPU can use.
-    uint32_t memory_size = 16;
+    uint32_t memory_size_ints = 16;
     // the number of architectural registers
-    uint16_t arch_reg_cnt = 16;
+    uint16_t arch_reg_cnt = 8;
     // the number of physical registers
     uint16_t phys_reg_cnt = 64;
     // true if every instruction execution should be printed
@@ -40,10 +40,12 @@ struct CPU_Config
     uint16_t sb_capacity = 4;
     // the capacity of the instruction queue between frontend and backend
     uint8_t instr_queue_capacity = 16;
-
+    // the size of the reorder buffer
     uint8_t rob_capacity = 16;
-
+    // the number of reservation stations
     uint16_t rs_count = 16;
+    // the number of instructions that can be fetched/decoded in a single cycle.
+    uint8_t frontend_n_wide = 8;
 };
 
 
@@ -59,7 +61,6 @@ private:
 public:
     uint64_t cycles = 0;
     int *arch_regs;
-    int *phys_regs;
     vector<int> *memory;
     InstrQueue instr_queue;
     StoreBuffer sb;
@@ -70,10 +71,13 @@ public:
     CPU(CPU_Config config)
     {
         arch_regs = new int[config.arch_reg_cnt];
-        phys_regs = new int[config.phys_reg_cnt];
+        for (int k = 0; k < config.arch_reg_cnt; k++)
+        {
+            arch_regs[k] = 0;
+        }
 
         memory = new vector<int>();
-        for (int k = 0; k < config.memory_size; k++)
+        for (int k = 0; k < config.memory_size_ints; k++)
         {
             memory->push_back(0);
         }
@@ -90,6 +94,7 @@ public:
         instr_queue.tail = 0;
         instr_queue.entries = new Instr *[config.instr_queue_capacity];
 
+        frontend.n_wide = config.frontend_n_wide;
         frontend.code = new vector<Instr>();
         frontend.ip_next_fetch = -1;
         frontend.bubble_remain = 0;
@@ -102,7 +107,9 @@ public:
         backend.next_phys_reg = 0;
         for (int k = 0; k < config.phys_reg_cnt; k++)
         {
-            backend.phys_reg_array[k].valid = false;
+            Phys_Reg &phys_reg = backend.phys_reg_array[k];
+            phys_reg.value = 0;
+            phys_reg.valid = false;
         }
 
         backend.frontend = &frontend;
@@ -132,9 +139,7 @@ public:
         for (uint16_t k = 0; k < config.rs_count; k++)
         {
             RS &rs = backend.rs_array[k];
-            rs.backend = &backend;
             rs.rs_index = k;
-            rs.phys_regs = phys_regs;
             rs.state = RS_FREE;
         }
         backend.rs_free_stack_size = config.rs_count;

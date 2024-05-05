@@ -2,8 +2,6 @@ TODO
 
 - when printing cycle progress, add the cycle as prefix
 
-- proper finding of a usable physical register.
-
 - the solution with the NOPs to deal with HALT or a branch is not going to work if
   the latency to get an instruction through the pipeline is larger than the pipeline
   depth.
@@ -24,3 +22,4 @@ TODO
 
 DONE
 
+- proper finding of a usable physical register.

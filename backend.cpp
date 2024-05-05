@@ -74,7 +74,7 @@ void Backend::cycle_issue()
                     if (rat_entry->valid)
                     {
                         // we need to use the physical register for the value
-                        Phys_Reg *phys_reg = &phys_reg_array[rat_entry->phys_reg];
+                        Phys_Reg_Slot *phys_reg = &phys_reg_file->array[rat_entry->phys_reg];
                         if (phys_reg->valid)
                         {
                             // the physical register has the value, so use that
@@ -130,13 +130,7 @@ void Backend::cycle_issue()
             {
                 case OperandType::REGISTER:
                 {
-                    if(phys_reg_free_stack_size == 0){
-                        throw std::runtime_error("there are no more physical registers");
-                    }
-
-                    // get a free physical register.
-                    phys_reg_free_stack_size--;
-                    uint16_t phys_reg = phys_reg_free_stack[phys_reg_free_stack_size];
+                    uint16_t phys_reg = phys_reg_file->allocate();
 
                     rat->entries[output_op_instr->reg].phys_reg = phys_reg;
                     output_op_rs->reg = phys_reg;
@@ -233,7 +227,7 @@ void Backend::cycle_dispatch()
             if (out_op->type == OperandType::REGISTER)
             {
                 // update the physical register.
-                Phys_Reg *phys_reg = &phys_reg_array[out_op->reg];
+                Phys_Reg_Slot *phys_reg = &phys_reg_file->array[out_op->reg];
                 phys_reg->valid = true;
                 phys_reg->value = result;
 
@@ -425,14 +419,7 @@ void Backend::retire(ROB_Slot *rob_slot)
         {
             // update the architectural register
             arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
-
-            // invalidate the physical register
-            Phys_Reg &phys_reg = phys_reg_array[out_op->reg];
-            phys_reg.valid = false;
-
-            // return the physical register to the free stack
-            phys_reg_free_stack[phys_reg_free_stack_size] = phys_reg.id;
-            phys_reg_free_stack_size++;
+            phys_reg_file->free(out_op->reg);
         }
     }
 

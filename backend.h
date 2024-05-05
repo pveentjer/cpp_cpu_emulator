@@ -87,11 +87,60 @@ struct RAT
 };
 
 
-struct Phys_Reg
+struct Phys_Reg_Slot
 {
     uint16_t id;
     int value;
     bool valid;
+};
+
+struct Phys_Reg_File
+{
+    Phys_Reg_Slot *array;
+    int *free_stack;
+    uint16_t free_stack_size;
+
+    Phys_Reg_File(int phys_reg_count)
+    {
+        free_stack = new int[phys_reg_count];
+        for (uint16_t k = 0; k < phys_reg_count; k++)
+        {
+            free_stack[k] = k;
+        }
+        free_stack_size = phys_reg_count;
+        array = new Phys_Reg_Slot[phys_reg_count];
+        for (int k = 0; k < phys_reg_count; k++)
+        {
+            Phys_Reg_Slot &phys_reg = array[k];
+            phys_reg.value = 0;
+            phys_reg.valid = false;
+            phys_reg.id = k;
+        }
+    }
+
+
+    uint16_t allocate()
+    {
+        if (free_stack_size == 0)
+        {
+            throw std::runtime_error("there are no more physical registers");
+        }
+
+        // get a free physical register.
+        free_stack_size--;
+        return free_stack[free_stack_size];
+    }
+
+    void free(uint16_t phys_reg)
+    {
+        // invalidate the physical register
+        Phys_Reg_Slot &slot = array[phys_reg];
+        slot.valid = false;
+
+        // return the physical register to the free stack
+        free_stack[free_stack_size] = phys_reg;
+        free_stack_size++;
+    }
 };
 
 /**
@@ -125,11 +174,7 @@ struct Backend
     ROB rob;
     ExecutionUnit eu;
     RAT *rat;
-
-    Phys_Reg *phys_reg_array;
-    int *phys_reg_free_stack;
-    uint16_t phys_reg_free_stack_size;
-
+    Phys_Reg_File *phys_reg_file;
 
     void cycle();
 
@@ -139,6 +184,7 @@ struct Backend
 
     void retire(ROB_Slot *rob_slot);
 
+    // todo: remove?
     void init_rs(RS *rs, ROB_Slot *rob_slot);
 
     void cycle_retire();
@@ -148,7 +194,6 @@ struct Backend
     void cycle_issue();
 
     void cdb_broadcast(uint16_t phys_reg, int result);
-
 
 };
 

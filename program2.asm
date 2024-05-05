@@ -10,7 +10,6 @@
     LOAD 2 C
     ;;LOAD 3 D
 
-    ADD 4 0 1
-    ;ADD 5 2 3
-    ;ADD 6 4 5
+    ADD 3 0 1
+    ADD 4 3 2
     PRINTR 4

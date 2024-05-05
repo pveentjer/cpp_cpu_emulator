@@ -6,19 +6,21 @@
 
 bool CPU::is_idle()
 {
-    return frontend.is_idle()
-           && instr_queue.is_empty()
+    return frontend->is_idle()
+           && instr_queue->is_empty()
            //&& backend.is_empty()
-           && sb.is_empty();
+           && sb->is_empty();
 }
 
 void CPU::cycle()
 {
-    frontend.cycle();
+    // todo: reverse order
 
-    backend.cycle();
+    frontend->cycle();
 
-    sb.cycle();
+    backend->cycle();
+
+    sb->cycle();
 
     cycles++;
 }

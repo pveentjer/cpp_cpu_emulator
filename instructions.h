@@ -93,7 +93,15 @@ struct InstrQueue
     uint64_t head = 0;
     uint64_t tail = 0;
 
+    InstrQueue(uint16_t capacity):capacity(capacity){
+        head = 0;
+        tail = 0;
+        entries = new Instr *[capacity];
+    }
 
+    ~InstrQueue(){
+        delete[] entries;
+    }
 
     [[nodiscard]] bool is_empty() const
     {

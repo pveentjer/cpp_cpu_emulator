@@ -8,6 +8,7 @@
 
 #include <vector>
 #include "instructions.h"
+#include "common.h"
 
 using namespace std;
 
@@ -24,6 +25,22 @@ struct Frontend
     // used for inserting bubbles
     Instr *nop;
     InstrQueue *instr_queue;
+
+    Frontend(CPU_Config *config, InstrQueue *instrQueue)
+            : n_wide(config->frontend_n_wide), instr_queue(instrQueue)
+    {
+        code = new vector<Instr>();
+        ip_next_fetch = -1;
+        bubble_remain = 0;
+        nop = new Instr();
+        nop->opcode = OPCODE_NOP;
+    }
+
+    ~Frontend()
+    {
+        delete code;
+        delete nop;
+    }
 
     void cycle();
 

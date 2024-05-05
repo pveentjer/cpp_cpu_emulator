@@ -451,6 +451,23 @@ void Backend::retire(ROB_Slot *rob_slot)
     rs_table->deallocate(rs);
 }
 
+Backend::Backend(CPU_Config config, Frontend *frontend, InstrQueue *instrQueue, vector<int> *memory, StoreBuffer *sb)
+        : frontend(frontend), instr_queue(instrQueue), memory(memory), sb(sb)
+{
+    arch_regs = new int[config.arch_reg_cnt];
+    for (int k = 0; k < config.arch_reg_cnt; k++)
+    {
+        arch_regs[k] = 0;
+    }
+
+    phys_reg_file = new Phys_Reg_File(config.phys_reg_cnt);
+    trace = config.trace;
+    rob = new ROB(config.rob_capacity);
+    rat = new RAT(config.arch_reg_cnt);
+    eu.backend = this;
+    rs_table = new RS_Table(config.rs_count);
+}
+
 uint16_t Phys_Reg_File::allocate()
 {
     if (free_stack_size == 0)
@@ -477,4 +494,98 @@ void Phys_Reg_File::deallocate(uint16_t phys_reg)
     // return the physical register to the free stack
     free_stack[free_stack_size] = phys_reg;
     free_stack_size++;
+}
+
+Phys_Reg_File::Phys_Reg_File(uint16_t phys_reg_count)
+{
+    count = phys_reg_count;
+    free_stack = new uint16_t[phys_reg_count];
+    for (uint16_t k = 0; k < phys_reg_count; k++)
+    {
+        free_stack[k] = k;
+    }
+    free_stack_size = phys_reg_count;
+    array = new Phys_Reg_Slot[phys_reg_count];
+    for (uint16_t k = 0; k < phys_reg_count; k++)
+    {
+        Phys_Reg_Slot &phys_reg = array[k];
+        phys_reg.value = 0;
+        phys_reg.has_value = false;
+    }
+}
+
+Phys_Reg_File::~Phys_Reg_File()
+{
+    delete[] array;
+    delete[] free_stack;
+}
+
+RS_Table::RS_Table(uint16_t rs_count) : count(rs_count)
+{
+    array = new RS[rs_count];
+    for (uint16_t k = 0; k < rs_count; k++)
+    {
+        RS &rs = array[k];
+        rs.rs_index = k;
+        rs.state = RS_FREE;
+    }
+    free_stack_size = rs_count;
+    free_stack = new uint16_t[rs_count];
+    for (uint16_t k = 0; k < rs_count; k++)
+    {
+        free_stack[k] = k;
+    }
+
+    ready_head = 0;
+    ready_tail = 0;
+    ready_queue = new uint16_t[rs_count];
+}
+
+RS_Table::~RS_Table()
+{
+    delete[] free_stack;
+    delete[] array;
+    delete[] ready_queue;
+}
+
+optional<RS *> RS_Table::allocate()
+{
+    if (free_stack_size == 0)
+    {
+        // There are no free reservation stations, so we are done
+        return nullopt;
+    }
+
+    // get a free RS
+    free_stack_size--;
+    return &array[free_stack[free_stack_size]];
+}
+
+void RS_Table::deallocate(RS *rs)
+{
+    if (free_stack_size == count)
+    {
+        throw std::runtime_error("RS_Table: too many frees");
+    }
+
+    rs->state = RS_FREE;
+    rs->rob_slot = nullptr;
+    rs->input_opt_ready_cnt = 0;
+    free_stack[free_stack_size] = rs->rs_index;
+    free_stack_size++;
+}
+
+RAT::RAT(uint16_t arg_reg_cnt)
+{
+    entries = new RAT_Entry[arg_reg_cnt];
+    for (uint16_t k = 0; k < arg_reg_cnt; k++)
+    {
+        entries[k].phys_reg = k;
+        entries[k].valid = true;
+    }
+}
+
+RAT::~RAT()
+{
+    delete[] entries;
 }

@@ -125,7 +125,7 @@ void load_program(CPU *cpu, string file)
                 throw std::runtime_error("Invalid program");
             }
 
-            labels.insert({label_name, cpu->frontend.code->size()});
+            labels.insert({label_name, cpu->frontend->code->size()});
             continue;
         }
 
@@ -424,7 +424,7 @@ void load_program(CPU *cpu, string file)
                     // todo: not all opcodes are handled.
             }
 
-            cpu->frontend.code->push_back(instr);
+            cpu->frontend->code->push_back(instr);
         }
         else
         {
@@ -435,12 +435,12 @@ void load_program(CPU *cpu, string file)
 
     // todo: file is not closed on error.
     infile.close();
-    if (cpu->frontend.code->size() > 0)
+    if (cpu->frontend->code->size() > 0)
     {
-        cpu->frontend.ip_next_fetch = 0;
+        cpu->frontend->ip_next_fetch = 0;
     }
     else
     {
-        cpu->frontend.ip_next_fetch = -1;
+        cpu->frontend->ip_next_fetch = -1;
     }
 }

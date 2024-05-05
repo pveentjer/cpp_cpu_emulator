@@ -21,9 +21,13 @@ struct StoreBuffer
 {
     StoreBufferEntry *entries;
     uint16_t capacity;
-    uint64_t head = 0;
-    uint64_t tail = 0;
+    uint64_t head;
+    uint64_t tail;
     vector<int> *memory;
+
+    StoreBuffer(uint16_t capacity, vector<int> *memory);
+
+    ~StoreBuffer();
 
     optional<int> lookup(int addr);
 

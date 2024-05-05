@@ -45,3 +45,16 @@ void StoreBuffer::cycle()
         head++;
     }
 }
+
+StoreBuffer::StoreBuffer(uint16_t capacity, vector<int> *memory) :memory(memory), capacity(capacity)
+{
+
+    entries = new StoreBufferEntry[capacity];
+    head = 0;
+    tail = 0;
+}
+
+StoreBuffer::~StoreBuffer()
+{
+    delete[] entries;
+}

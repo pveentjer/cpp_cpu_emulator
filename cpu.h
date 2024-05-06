@@ -11,12 +11,12 @@
 #include <optional>
 #include <map>
 
-#include "common.h"
-#include "instructions.h"
-#include "utils.h"
-#include "memory_subsystem.h"
-#include "backend.h"
-#include "frontend.h"
+#include "include/common.h"
+#include "include/instructions.h"
+#include "include/utils.h"
+#include "include/memory_subsystem.h"
+#include "include/backend.h"
+#include "include/frontend.h"
 
 using namespace std;
 

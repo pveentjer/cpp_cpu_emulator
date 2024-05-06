@@ -5,19 +5,19 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(cpu_emulator main.cpp
         instructions.cpp
-        instructions.h
+        include/instructions.h
         utils.cpp
-        utils.h
+        include/utils.h
         loader.cpp
-        loader.h
+        include/loader.h
         cpu.cpp
         cpu.h
         backend.cpp
-        backend.h
+        include/backend.h
         frontend.cpp
-        frontend.h
+        include/frontend.h
         memory_subsystem.cpp
-        memory_subsystem.h
+        include/memory_subsystem.h
         common.cpp
-        common.h
+        include/common.h
 )

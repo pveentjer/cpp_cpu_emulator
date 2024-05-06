@@ -2,8 +2,8 @@
 // Created by pveentjer on 4/30/24.
 //
 
-#include "loader.h"
-#include "instructions.h"
+#include "include/loader.h"
+#include "include/instructions.h"
 #include "cpu.h"
 #include <fstream>
 #include <sstream>

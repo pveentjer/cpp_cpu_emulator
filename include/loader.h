@@ -3,7 +3,7 @@
 //
 
 #include <string>
-#include "cpu.h"
+#include "../cpu.h"
 
 #ifndef CPU_EMULATOR_LOADER_H
 #define CPU_EMULATOR_LOADER_H

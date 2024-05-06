@@ -2,7 +2,7 @@
 // Created by pveentjer on 4/28/24.
 //
 
-#include "instructions.h"
+#include "include/instructions.h"
 
 
 void print_instr(Instr *instr)

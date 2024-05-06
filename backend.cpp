@@ -3,11 +3,49 @@
 //
 
 #include "backend.h"
-#include "utils.h"
+
+Backend::Backend(CPU_Config config,
+                 Frontend *frontend,
+                 InstrQueue *instrQueue,
+                 vector<int> *memory,
+                 StoreBuffer *sb)
+        : frontend(frontend),
+          instr_queue(instrQueue),
+          memory(memory),
+          sb(sb)
+{
+    arch_regs = new int[config.arch_reg_cnt];
+    for (int k = 0; k < config.arch_reg_cnt; k++)
+    {
+        arch_regs[k] = 0;
+    }
+
+    eu.backend = this;
+
+    phys_reg_file = new Phys_Reg_File(config.phys_reg_cnt);
+    trace = config.trace;
+    rob = new ROB(config.rob_capacity);
+    rat = new RAT(config.arch_reg_cnt);
+    eu_table = new EU_Table(config.eu_count);
+    rs_table = new RS_Table(config.rs_count);
+}
+
+
+Backend::~Backend()
+{
+    delete[] arch_regs;
+    delete phys_reg_file;
+    delete rob;
+    delete rat;
+    delete eu_table;
+    delete rs_table;
+}
 
 void Backend::cycle()
 {
     cycle_retire();
+
+    eu_table->cycle();
 
     // send for execution units
     cycle_dispatch();
@@ -73,7 +111,7 @@ void Backend::cycle_issue()
                     if (rat_entry->valid)
                     {
                         // we need to use the physical register for the value
-                        Phys_Reg_Slot *phys_reg = &phys_reg_file->array[rat_entry->phys_reg];
+                        Phys_Reg_Struct *phys_reg = &phys_reg_file->array[rat_entry->phys_reg];
                         if (phys_reg->has_value)
                         {
                             // the physical register has the value, so use that
@@ -226,7 +264,7 @@ void Backend::cycle_dispatch()
             if (out_op->type == OperandType::REGISTER)
             {
                 // update the physical register.
-                Phys_Reg_Slot *phys_reg = &phys_reg_file->array[out_op->reg];
+                Phys_Reg_Struct *phys_reg = &phys_reg_file->array[out_op->reg];
                 phys_reg->has_value = true;
                 phys_reg->value = result;
 
@@ -312,7 +350,53 @@ void Backend::on_rs_ready(RS *rs)
     rs_table->ready_tail++;
 }
 
-void ExecutionUnit::execute()
+void Backend::retire(ROB_Slot *rob_slot)
+{
+    Instr *instr = rob_slot->instr;
+
+    for (int out_op_index = 0; out_op_index < instr->output_ops_cnt; out_op_index++)
+    {
+        Operand *out_op = &rob_slot->rs->output_ops[out_op_index];
+        if (out_op->type == OperandType::REGISTER)
+        {
+            // update the architectural register
+            arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
+            phys_reg_file->deallocate(out_op->reg);
+        }
+    }
+
+
+    // hack to deal with updating the front-end
+    if (instr->opcode == OPCODE_HALT)
+    {
+        frontend->ip_next_fetch = -1;
+    }
+
+//        case OPCODE_STORE:
+//            // write the result to memory
+//            sb->write(instr->output_ops[0].memory_addr, rob_slot->result);
+//            break;
+//        case OPCODE_PRINTR:
+//            break;
+
+//        case OPCODE_JNZ:
+//        {
+////            int v1 = arch_regs->at(instr->code.JNZ.r_src);
+////            if (v1 != 0)
+////            {
+////                cpu->frontend.ip_next_fetch = instr->code.JNZ.c_target;
+////            }
+//            break;
+//        }
+
+    RS *rs = rob_slot->rs;
+    rob_slot->rs = nullptr;
+
+    rs_table->deallocate(rs);
+}
+
+
+void EU::execute()
 {
     // todo: the result needs to be stored in the RS
     ROB_Slot *rob_slot = rs->rob_slot;
@@ -406,66 +490,72 @@ void ExecutionUnit::execute()
     rob_slot->state = ROB_Slot_State::ROB_SLOT_EXECUTED;
 }
 
-void Backend::retire(ROB_Slot *rob_slot)
+void EU::cycle()
 {
-    Instr *instr = rob_slot->instr;
 
-    for (int out_op_index = 0; out_op_index < instr->output_ops_cnt; out_op_index++)
-    {
-        Operand *out_op = &rob_slot->rs->output_ops[out_op_index];
-        if (out_op->type == OperandType::REGISTER)
-        {
-            // update the architectural register
-            arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
-            phys_reg_file->deallocate(out_op->reg);
-        }
-    }
-
-
-    // hack to deal with updating the front-end
-    if (instr->opcode == OPCODE_HALT)
-    {
-        frontend->ip_next_fetch = -1;
-    }
-
-//        case OPCODE_STORE:
-//            // write the result to memory
-//            sb->write(instr->output_ops[0].memory_addr, rob_slot->result);
-//            break;
-//        case OPCODE_PRINTR:
-//            break;
-
-//        case OPCODE_JNZ:
-//        {
-////            int v1 = arch_regs->at(instr->code.JNZ.r_src);
-////            if (v1 != 0)
-////            {
-////                cpu->frontend.ip_next_fetch = instr->code.JNZ.c_target;
-////            }
-//            break;
-//        }
-
-    RS *rs = rob_slot->rs;
-    rob_slot->rs = nullptr;
-
-    rs_table->deallocate(rs);
 }
 
-Backend::Backend(CPU_Config config, Frontend *frontend, InstrQueue *instrQueue, vector<int> *memory, StoreBuffer *sb)
-        : frontend(frontend), instr_queue(instrQueue), memory(memory), sb(sb)
+EU_Table::EU_Table(uint8_t count) : count(count)
 {
-    arch_regs = new int[config.arch_reg_cnt];
-    for (int k = 0; k < config.arch_reg_cnt; k++)
+    array = new EU[count];
+}
+
+EU_Table::~EU_Table()
+{
+    delete[] array;
+    delete[] free_stack;
+}
+
+void EU_Table::cycle()
+{
+    for(uint8_t k=0;k<count;k++){
+        EU eu = array[k];
+        if(eu.busy){
+            eu.cycle();
+        }
+    }
+}
+
+optional<EU> EU_Table::allocate()
+{
+    if (free_stack_size == 0)
     {
-        arch_regs[k] = 0;
+        return std::nullopt;
     }
 
-    phys_reg_file = new Phys_Reg_File(config.phys_reg_cnt);
-    trace = config.trace;
-    rob = new ROB(config.rob_capacity);
-    rat = new RAT(config.arch_reg_cnt);
-    eu.backend = this;
-    rs_table = new RS_Table(config.rs_count);
+    // get a free physical register.
+    free_stack_size--;
+    uint8_t free = free_stack[free_stack_size];
+    return array[free];
+}
+
+void EU_Table::deallocate(EU eu)
+{
+
+}
+
+Phys_Reg_File::Phys_Reg_File(uint16_t phys_reg_count)
+{
+    count = phys_reg_count;
+    free_stack = new uint16_t[phys_reg_count];
+    for (uint16_t k = 0; k < phys_reg_count; k++)
+    {
+        free_stack[phys_reg_count - 1 - k] = k;
+    }
+    free_stack_size = phys_reg_count;
+    array = new Phys_Reg_Struct[phys_reg_count];
+    for (uint16_t k = 0; k < phys_reg_count; k++)
+    {
+        Phys_Reg_Struct &slot = array[k];
+        slot.value = 0;
+        slot.has_value = false;
+    }
+}
+
+Phys_Reg_File::~Phys_Reg_File()
+{
+    delete[] array;
+    delete[] free_stack;
 }
 
 uint16_t Phys_Reg_File::allocate()
@@ -488,36 +578,12 @@ void Phys_Reg_File::deallocate(uint16_t phys_reg)
     }
 
     // invalidate the physical register
-    Phys_Reg_Slot &slot = array[phys_reg];
+    Phys_Reg_Struct &slot = array[phys_reg];
     slot.has_value = false;
 
     // return the physical register to the free stack
     free_stack[free_stack_size] = phys_reg;
     free_stack_size++;
-}
-
-Phys_Reg_File::Phys_Reg_File(uint16_t phys_reg_count)
-{
-    count = phys_reg_count;
-    free_stack = new uint16_t[phys_reg_count];
-    for (uint16_t k = 0; k < phys_reg_count; k++)
-    {
-        free_stack[k] = k;
-    }
-    free_stack_size = phys_reg_count;
-    array = new Phys_Reg_Slot[phys_reg_count];
-    for (uint16_t k = 0; k < phys_reg_count; k++)
-    {
-        Phys_Reg_Slot &phys_reg = array[k];
-        phys_reg.value = 0;
-        phys_reg.has_value = false;
-    }
-}
-
-Phys_Reg_File::~Phys_Reg_File()
-{
-    delete[] array;
-    delete[] free_stack;
 }
 
 RS_Table::RS_Table(uint16_t rs_count) : count(rs_count)
@@ -589,3 +655,4 @@ RAT::~RAT()
 {
     delete[] entries;
 }
+

@@ -30,5 +30,9 @@ struct CPU_Config
     uint16_t rs_count = 16;
     // the number of instructions that can be fetched/decoded in a single cycle.
     uint8_t frontend_n_wide = 8;
+
+    bool debug = false;
+    // the number of general purpose execution units
+    uint8_t eu_count;
 };
 #endif //CPU_EMULATOR_COMMON_H

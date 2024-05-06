@@ -30,6 +30,14 @@ void CPU::run()
     while (!is_idle())
     {
         this_thread::sleep_for(cycle_period_ms);
+
+        if (debug)
+        {
+            printf("---------------------------------\n");
+            printf("cycle: %lu\n", cycles);
+            printf("---------------------------------\n");
+        }
+
         cycle();
     }
 }

@@ -60,7 +60,7 @@ void print_instr(Instr *instr)
             printf("HALT\n");
             break;
         case OPCODE_NOP:
-            //printf("NOP\n");
+            printf("NOP\n");
             break;
         default:
             throw std::runtime_error("print_instr:Unrecognized opcode");
@@ -79,4 +79,46 @@ bool is_branch(Opcode opcode)
         default:
             return false;
     }
+}
+
+InstrQueue::InstrQueue(uint16_t capacity) : capacity(capacity)
+{
+    head = 0;
+    tail = 0;
+    entries = new Instr *[capacity];
+}
+
+InstrQueue::~InstrQueue()
+{
+    delete[] entries;
+}
+
+bool InstrQueue::is_empty() const
+{
+    return head == tail;
+}
+
+uint16_t InstrQueue::size() const
+{
+    return tail - head;
+}
+
+bool InstrQueue::is_full() const
+{
+    return size() == capacity;
+}
+
+Instr *InstrQueue::dequeue()
+{
+    // todo: better handling when empty
+
+    Instr *instr = entries[head % capacity];
+    head++;
+    return instr;
+}
+
+void InstrQueue::enqueue(Instr *instr)
+{
+    entries[tail % capacity] = instr;
+    tail++;
 }

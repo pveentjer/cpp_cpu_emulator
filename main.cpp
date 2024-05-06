@@ -13,7 +13,8 @@ int main()
     config->rs_count = 16;
     config->frontend_n_wide = 2;
     config->instr_queue_capacity = 64;
-    config->rob_capacity = 128;
+    config->rob_capacity = 32;
+    config->debug = true;
 
     CPU *cpu = new CPU(*config);
 

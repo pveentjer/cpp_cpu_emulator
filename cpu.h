@@ -24,8 +24,6 @@ using namespace std;
 class CPU;
 
 
-
-
 class CPU
 {
 
@@ -38,15 +36,15 @@ private:
 public:
     uint64_t cycles = 0;
     vector<int> *memory;
-    InstrQueue* instr_queue;
+    InstrQueue *instr_queue;
     StoreBuffer *sb;
     chrono::milliseconds cycle_period_ms;
-    Frontend* frontend;
-    Backend* backend;
+    Frontend *frontend;
+    Backend *backend;
+    bool debug;
 
-    CPU(CPU_Config config)
+    CPU(CPU_Config config) : debug(config.debug)
     {
-
         memory = new vector<int>();
         for (int k = 0; k < config.memory_size_ints; k++)
         {

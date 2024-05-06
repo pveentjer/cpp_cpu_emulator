@@ -93,43 +93,19 @@ struct InstrQueue
     uint64_t head = 0;
     uint64_t tail = 0;
 
-    InstrQueue(uint16_t capacity):capacity(capacity){
-        head = 0;
-        tail = 0;
-        entries = new Instr *[capacity];
-    }
+    InstrQueue(uint16_t capacity);
 
-    ~InstrQueue(){
-        delete[] entries;
-    }
+    ~InstrQueue();
 
-    [[nodiscard]] bool is_empty() const
-    {
-        return head == tail;
-    }
+    [[nodiscard]] bool is_empty() const;
 
-    [[nodiscard]] uint16_t size() const
-    {
-        return tail - head;
-    }
+    [[nodiscard]] uint16_t size() const;
 
-    [[nodiscard]] bool is_full() const
-    {
-        return size() == capacity;
-    }
+    [[nodiscard]] bool is_full() const;
 
-    Instr *dequeue()
-    {
-        Instr *instr = entries[head % capacity];
-        head++;
-        return instr;
-    }
+    Instr *dequeue();
 
-    void enqueue(Instr *instr)
-    {
-        entries[tail % capacity] = instr;
-        tail++;
-    }
+    void enqueue(Instr *instr);
 };
 
 

@@ -32,7 +32,6 @@ struct ROB
     uint16_t capacity;
     ROB_Slot *slots;
 
-
     ROB(uint16_t capacity) : capacity(capacity)
     {
         head = 0;
@@ -69,8 +68,9 @@ struct ROB
 struct Backend;
 
 
-struct ExecutionUnit
+struct EU
 {
+    bool busy;
     RS *rs;
     Backend *backend;
     // the input in_operands
@@ -79,6 +79,25 @@ struct ExecutionUnit
     int result;
 
     void execute();
+
+    void cycle();
+};
+
+struct EU_Table{
+    uint8_t count;
+    EU *array;
+    uint8_t *free_stack;
+    uint8_t free_stack_size;
+
+    EU_Table(uint8_t count);
+
+    ~EU_Table();
+
+    void cycle();
+
+    optional<EU> allocate();
+
+    void deallocate(EU eu);
 };
 
 
@@ -100,7 +119,7 @@ struct RAT
 };
 
 
-struct Phys_Reg_Slot
+struct Phys_Reg_Struct
 {
     int value;
     bool has_value;
@@ -109,7 +128,7 @@ struct Phys_Reg_Slot
 struct Phys_Reg_File
 {
     uint16_t count;
-    Phys_Reg_Slot *array;
+    Phys_Reg_Struct *array;
     uint16_t *free_stack;
     uint16_t free_stack_size;
 
@@ -117,6 +136,7 @@ struct Phys_Reg_File
 
     ~Phys_Reg_File();
 
+    // todo: return optional
     /**
      * Allocates a physical register.
      *
@@ -148,12 +168,15 @@ struct Backend
     vector<int> *memory;
     InstrQueue *instr_queue;
     ROB *rob;
-    ExecutionUnit eu;
+    EU_Table *eu_table;
     RAT *rat;
     Phys_Reg_File *phys_reg_file;
     int *arch_regs;
+    EU eu;
 
     Backend(CPU_Config config, Frontend *frontend, InstrQueue *instrQueue, vector<int> *memory, StoreBuffer *sb);
+
+    ~Backend();
 
     //todo: destructor
 

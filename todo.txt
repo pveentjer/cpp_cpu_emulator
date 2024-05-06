@@ -1,6 +1,8 @@
 TODO
 
-- instruction queue should have constructor
+- better modelling of the execution unit.
+
+- super scalar (currently just 1 EU)
 
 - should RS_Table be called RST (T stands for Table; just like RAT)
 
@@ -20,9 +22,9 @@ TODO
 
 - support speculative execution
 
-- super scalar (currently just 1 EU)
-
 DONE
+
+- instruction queue should have constructor
 
 - rs free stack logic should be moved into RS_Table
 

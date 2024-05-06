@@ -3,21 +3,21 @@ project(cpu_emulator)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(cpu_emulator main.cpp
-        instructions.cpp
+add_executable(cpu_emulator src/main.cpp
+        src/instructions.cpp
         include/instructions.h
-        utils.cpp
+        src/utils.cpp
         include/utils.h
-        loader.cpp
+        src/loader.cpp
         include/loader.h
-        cpu.cpp
-        cpu.h
-        backend.cpp
+        src/cpu.cpp
+        include/cpu.h
+        src/backend.cpp
         include/backend.h
-        frontend.cpp
+        src/frontend.cpp
         include/frontend.h
-        memory_subsystem.cpp
+        src/memory_subsystem.cpp
         include/memory_subsystem.h
-        common.cpp
+        src/common.cpp
         include/common.h
 )

@@ -2,9 +2,9 @@
 // Created by pveentjer on 4/30/24.
 //
 
-#include "include/loader.h"
-#include "include/instructions.h"
-#include "cpu.h"
+#include "../include/loader.h"
+#include "../include/instructions.h"
+#include "../include/cpu.h"
 #include <fstream>
 #include <sstream>
 

@@ -1,5 +1,5 @@
-#include "cpu.h"
-#include "include/loader.h"
+#include "../include/cpu.h"
+#include "../include/loader.h"
 
 int main()
 {

@@ -2,7 +2,7 @@
 // Created by pveentjer on 4/30/24.
 //
 
-#include "cpu.h"
+#include "../include/cpu.h"
 
 bool CPU::is_idle()
 {

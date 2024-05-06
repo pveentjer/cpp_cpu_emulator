@@ -22,16 +22,15 @@ void Frontend::cycle()
         //printf("ip_next_fetch %d\n", ip_next_fetch);
         Instr *instr = &code->at(ip_next_fetch);
 
-        // when a branch enters the pipeline, the pipeline will be filled with nops
-        // to prevent a branch_in_pipeline hazard. This will guarantee that the branch instruction
-        // has been executed, before instructions of the taken or untaken branch are
-        // added to the pipeline.
         if (is_branch(instr->opcode))
         {
             branch_in_pipeline = true;
         }
+        else
+        {
+            ip_next_fetch++;
+        }
         instr_queue->enqueue(instr);
-        ip_next_fetch++;
     }
 }
 

@@ -1,6 +1,12 @@
 TODO
 
-- rename instruction to Operation
+- store buffer and memory, should be part of memory subsystem
+
+- fix STORE
+
+- fix STLF
+
+- when printing cycle debug info: show some stats like total number of instructions issued, retired, ipc
 
 - introduce an architectural register file
 
@@ -11,12 +17,6 @@ TODO
 - super scalar (currently just 1 EU)
 
 - should RS_Table be called RST (T stands for Table; just like RAT)
-
-- when printing cycle progress, add the cycle as prefix
-
-- the solution with the NOPs to deal with HALT or a branch is not going to work if
-  the latency to get an instruction through the pipeline is larger than the pipeline
-  depth.
 
 - program loader: should use R prefix for instructions
 
@@ -30,14 +30,9 @@ TODO
 
 DONE
 
-- instruction queue should have constructor
+- fix JNZ
 
-- rs free stack logic should be moved into RS_Table
+- the solution with the NOPs to deal with HALT or a branch is not going to work if
+  the latency to get an instruction through the pipeline is larger than the pipeline
+  depth.
 
-- out of order execution
-
-- add RS_Table
-
-- add ROB constructor/destructor
-
-- proper finding of a usable physical register.

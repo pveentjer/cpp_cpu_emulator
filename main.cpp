@@ -5,7 +5,7 @@ int main()
 {
     CPU_Config *config = new CPU_Config();
     config->trace = true;
-    config->cpu_frequency_Hz = 10;
+    config->cpu_frequency_Hz = 5;
     config->memory_size_ints = 16;
     config->arch_reg_cnt = 16;
     config->phys_reg_cnt = 64;
@@ -18,7 +18,7 @@ int main()
 
     CPU *cpu = new CPU(*config);
 
-    load_program(cpu, "program2.asm");
+    load_program(cpu, "program.asm");
 
     cpu->run();
     cpu->print_memory();

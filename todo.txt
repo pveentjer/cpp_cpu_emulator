@@ -1,5 +1,11 @@
 TODO
 
+- rename instruction to Operation
+
+- introduce an architectural register file
+
+- better handling of the end of the program
+
 - better modelling of the execution unit.
 
 - super scalar (currently just 1 EU)

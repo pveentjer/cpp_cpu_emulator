@@ -20,18 +20,19 @@ struct Frontend
 {
     uint8_t n_wide;
     vector<Instr> *code;
-    uint8_t bubble_remain;
+    bool branch_in_pipeline;
     int32_t ip_next_fetch = -1;
     // used for inserting bubbles
     Instr *nop;
     InstrQueue *instr_queue;
 
     Frontend(CPU_Config *config, InstrQueue *instrQueue)
-            : n_wide(config->frontend_n_wide), instr_queue(instrQueue)
+            : n_wide(config->frontend_n_wide)
+            , instr_queue(instrQueue)
     {
         code = new vector<Instr>();
         ip_next_fetch = -1;
-        bubble_remain = 0;
+        branch_in_pipeline = false;
         nop = new Instr();
         nop->opcode = OPCODE_NOP;
     }

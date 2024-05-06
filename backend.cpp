@@ -92,6 +92,10 @@ void Backend::cycle_issue()
         Instr *instr = rob_slot->instr;
         rs->rob_slot = rob_slot;
 
+
+        printf("Issue ");
+        print_instr(instr);
+
         // prepare the input operands.
         rs->input_op_cnt = instr->input_ops_cnt;
         rs->input_opt_ready_cnt = 0;
@@ -110,10 +114,12 @@ void Backend::cycle_issue()
 
                     if (rat_entry->valid)
                     {
+                        printf("RAT Valid\n");
                         // we need to use the physical register for the value
                         Phys_Reg_Struct *phys_reg = &phys_reg_file->array[rat_entry->phys_reg];
                         if (phys_reg->has_value)
                         {
+                            printf("Phys reg is valid\n");
                             // the physical register has the value, so use that
                             input_op_rs->type = OperandType::CONSTANT;
                             input_op_rs->constant = phys_reg->value;
@@ -121,6 +127,8 @@ void Backend::cycle_issue()
                         }
                         else
                         {
+                            printf("Phys reg is not valid\n");
+
                             // the physical register doesn't have the value.
                             // the broadcast on the cdb will take care of setting the value
                             input_op_rs->reg = rat_entry->phys_reg;
@@ -129,6 +137,9 @@ void Backend::cycle_issue()
                     }
                     else
                     {
+                        printf("Read from arch reg\n");
+
+
                         // there is no physical register, so we use the value in the architectural register
                         input_op_rs->type = OperandType::CONSTANT;
                         input_op_rs->constant = arch_regs[arch_reg];
@@ -168,10 +179,14 @@ void Backend::cycle_issue()
                 case OperandType::REGISTER:
                 {
                     uint16_t phys_reg = phys_reg_file->allocate();
+                    uint16_t arch_reg = output_op_instr->reg;
 
-                    rat->entries[output_op_instr->reg].phys_reg = phys_reg;
+                    RAT_Entry &rat_entry = rat->entries[arch_reg];
+                    rat_entry.phys_reg = phys_reg;
+                    rat_entry.valid = true;
+
                     output_op_rs->reg = phys_reg;
-                    printf("Register rename from %d to %d\n", output_op_instr->reg, output_op_rs->reg);
+                    printf("Register rename from %d to %d\n", arch_reg, output_op_rs->reg);
                     break;
                 }
 //                case OperandType::MEMORY:
@@ -360,8 +375,16 @@ void Backend::retire(ROB_Slot *rob_slot)
         if (out_op->type == OperandType::REGISTER)
         {
             // update the architectural register
-            arch_regs[instr->output_ops[out_op_index].reg] = rob_slot->result;
+            uint16_t arch_reg = instr->output_ops[out_op_index].reg;
+
+            // write the value to the architectural register
+            arch_regs[arch_reg] = rob_slot->result;
+
+            // deallocate the physical register
             phys_reg_file->deallocate(out_op->reg);
+
+            // mark the rat entry as invalid
+            rat->entries[arch_reg].valid = false;
         }
     }
 
@@ -370,6 +393,16 @@ void Backend::retire(ROB_Slot *rob_slot)
     if (instr->opcode == OPCODE_HALT)
     {
         frontend->ip_next_fetch = -1;
+    }
+    else if (instr->opcode == OPCODE_JNZ)
+    {
+        int v1 = arch_regs[instr->input_ops[0].reg];
+        if (v1 != 0)
+        {
+            printf("Take the branch\n");
+            frontend->ip_next_fetch = instr->input_ops[1].code_addr;
+            frontend->branch_in_pipeline = false;
+        }
     }
 
 //        case OPCODE_STORE:
@@ -381,11 +414,11 @@ void Backend::retire(ROB_Slot *rob_slot)
 
 //        case OPCODE_JNZ:
 //        {
-////            int v1 = arch_regs->at(instr->code.JNZ.r_src);
-////            if (v1 != 0)
-////            {
-////                cpu->frontend.ip_next_fetch = instr->code.JNZ.c_target;
-////            }
+//            int v1 = arch_regs->at(instr->code.JNZ.r_src);
+//            if (v1 != 0)
+//            {
+//                cpu->frontend.ip_next_fetch = instr->code.JNZ.c_target;
+//            }
 //            break;
 //        }
 
@@ -469,15 +502,15 @@ void EU::execute()
             printf("                                R%d=%d\n", instr->input_ops[0].reg, i);
             break;
         }
-//        case OPCODE_JNZ:
-//        {
+        case OPCODE_JNZ:
+        {
 //            int v1 = arch_regs->at(instr->code.JNZ.r_src);
 //            if (v1 != 0)
 //            {
 //                backend->frontend->ip_next_fetch = instr->code.JNZ.c_target;
 //            }
-//            break;
-//        }
+            break;
+        }
         case OPCODE_HALT:
             break;
         case OPCODE_NOP:
@@ -508,9 +541,11 @@ EU_Table::~EU_Table()
 
 void EU_Table::cycle()
 {
-    for(uint8_t k=0;k<count;k++){
+    for (uint8_t k = 0; k < count; k++)
+    {
         EU eu = array[k];
-        if(eu.busy){
+        if (eu.busy)
+        {
             eu.cycle();
         }
     }
@@ -647,7 +682,7 @@ RAT::RAT(uint16_t arg_reg_cnt)
     for (uint16_t k = 0; k < arg_reg_cnt; k++)
     {
         entries[k].phys_reg = k;
-        entries[k].valid = true;
+        entries[k].valid = false;
     }
 }
 
